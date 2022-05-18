@@ -87,10 +87,46 @@ def prop(phasemap, cell_spacing, target_dist, res, k):
     H = np.exp(1j*np.lib.scimath.sqrt(k**2 - kx**2 - (ky**2).T)*target_dist) # propagator function
     Gf = F*H.T # propagating the signal forward in Fourier space
     gf = np.fft.ifft2(np.fft.ifftshift(Gf)) # IFT & shift to return to real space
+    return 
+    
+def ASM_prop(surface_pressure, cell_spacing, target_dist, res_fac, k):
+    """
+    Propagate a phasemap forward to a parallel plane at a given resolution.
+    Returns a complex pressure field. Assumes non-plane wave source.
+    
+    params:
+    surface_pressure = complex surface pressure
+    cell_spacing = seperation between cells on the metasurface
+    target_dist = distance to propagation plane
+    res = returns this many sample points for each point in the input phasemap
+    k = wavenumber
+    """
+    f = np.kron(surface_pressure, np.ones((res_fac, res_fac)))
+    Nfft = f.shape
+    kx = (2*np.pi*(np.arange(-Nfft[0]/2, (Nfft[0])/2)/((cell_spacing/res_fac)*Nfft[0]))) \
+    .reshape((1, Nfft[0])) # kx vector
+    ky = (2*np.pi*(np.arange(-Nfft[1]/2, (Nfft[1])/2)/((cell_spacing/res_fac)*Nfft[1]))) \
+    .reshape((1, Nfft[1])) # ky vector
+    F = np.fft.fft2(f) # 2D FT
+    F = np.fft.fftshift(F) # Shift to the centre
+    ## Propagate forwards    
+    H = np.exp(1j*np.lib.scimath.sqrt(k**2 - kx**2 - (ky**2).T)*target_dist) # propagator function
+    Gf = F*H.T # propagating the signal forward in Fourier space
+    gf = np.fft.ifft2(np.fft.ifftshift(Gf)) # IFT & shift to return to real space
     return gf
     
+
+def target_builder_image(filename):
+    '''Convert an image in .png format into a bitmap target in .npy format'''
+    import numpy as np, matplotlib.pyplot as plt
+    target_image = plt.imread(filename+'.png')
+    if len(target_image.shape) > 2: # remove rgb vestige if it is present
+        target_image = target_image[:,:,:1]
+        target_image = np.reshape(target_image[:,:],(target_image.shape[0], target_image.shape[1]))
+    return abs((target_image/np.amax(target_image)) - 1)
+
     
-def target_builder(char_list, font_file, fontsize, im_h):
+def target_builder_chars(char_list, font_file, fontsize, im_h):
     """
     Creates an array of numpy array images to be used as targets with the iterative GS function.
     
@@ -137,19 +173,9 @@ def target_builder(char_list, font_file, fontsize, im_h):
         target_image[int((im_h-w)/2): int((im_h+w)/2), int((im_h-h)/2):int((im_h+h)/2)] = target_dummy   
         target_images.append(target_image) # save to list
     return target_images
-
-
-def padwidth(N, array):
-    """
-    Dumb function which needs to be deleted. currently GS relies on this, but i need to remove that reliance.
-    
-    TO DO: eliminate the need for this function. 
-    """
-    return ((int((N - array.shape[0]) / 2), int((N - array.shape[0]) / 2)),
-            (int((N - array.shape[1]) / 2), int((N - array.shape[1]) / 2))) 
     
     
-def Iterative_GS(target_image, iterations, cell_spacing, target_dist, res, k):
+def Iterative_GS(target_image, iterations, cell_spacing, target_dist, k):
     """
     implements the iterative GS algorithm to create phasemaps for a chosen target a chosen distance away.
     Assumes plane wave source.
@@ -160,12 +186,12 @@ def Iterative_GS(target_image, iterations, cell_spacing, target_dist, res, k):
     ell_spacing = seperation between cells on the metasurface.
     target_dist = distance to propagation plane.
     res = returns this many sample points for each point in the input phasemap.
-    k = wavenumber.
+    k = wavenumber.      
     """
     apsize = target_image.shape
-    n = apsize[0]
-    N = 3*n
-    pw = padwidth(N, np.zeros(apsize))
+    N = 3*apsize[0]
+    pw = ((int((N - apsize[0]) / 2), int((N - apsize[0]) / 2)),
+          (int((N - apsize[1]) / 2), int((N - apsize[1]) / 2)))
     padded_target = np.pad(target_image, pw, 'constant', constant_values = 0) # Pad with zeros 
     aperture = np.ones(apsize)
     padded_aperture = np.pad(aperture, pw, 'constant', constant_values = 0)
@@ -173,11 +199,11 @@ def Iterative_GS(target_image, iterations, cell_spacing, target_dist, res, k):
     for it in range(iterations):
         lpp = ASM_bw(tpp, cell_spacing, target_dist, k) # inverse ASM to backpropagate complex pressure to lens-plane
         lpp = padded_aperture*np.exp(1j*np.angle(lpp)*padded_aperture) # isolate over aperture
-        tpp = ASM_fw(lpp, cell_spacing, target_dist, res, k) # forward ASM to propagate updated phase as complex pressure to the target-plane
+        tpp = ASM_fw(lpp, cell_spacing, target_dist, k) # forward ASM to propagate updated phase as complex pressure to the target-plane
         tpp = padded_target*np.exp(1j*np.angle(tpp)*padded_target) # isolate target area
     lpp = ASM_bw(tpp, cell_spacing, target_dist, k)
     lpp = padded_aperture*np.exp(1j*np.angle(lpp)*padded_aperture) # isolate
-    tpp = ASM_fw(lpp, cell_spacing, target_dist, res, k)
+    tpp = ASM_fw(lpp, cell_spacing, target_dist, k)
     return np.angle(lpp)[pw[0][0]:pw[0][0] + apsize[0], pw[1][0]:pw[1][0] + apsize[1]]
 
 
@@ -196,9 +222,9 @@ def PMP_Iterative_GS(target_image, incident_surface_pressure, iterations, cell_s
     k = wavenumber.
     """
     apsize = target_image.shape
-    n = apsize[0]
-    N = 4*n
-    pw = padwidth(N, np.zeros(apsize))
+    N = 3*apsize[0]
+    pw = ((int((N - apsize[0]) / 2), int((N - apsize[0]) / 2)),
+          (int((N - apsize[1]) / 2), int((N - apsize[1]) / 2)))
     surface_amplitude, surface_phase = abs(incident_surface_pressure), np.angle(incident_surface_pressure)
     aperture = ((surface_amplitude != 0).astype(int))
     
@@ -211,16 +237,16 @@ def PMP_Iterative_GS(target_image, incident_surface_pressure, iterations, cell_s
     for it in range(iterations):
         lpp = ASM_bw(tpp, cell_spacing, target_dist, k) # inverse ASM to backpropagate complex pressure to lens-plane
         lpp = padded_surface_amplitude*np.exp(1j*np.angle(lpp)*padded_aperture) # isolate over aperture
-        tpp = ASM_fw(lpp, cell_spacing, target_dist, 1, k) # forward ASM to propagate updated phase as complex pressure to the target-plane
+        tpp = ASM_fw(lpp, cell_spacing, target_dist, k) # forward ASM to propagate updated phase as complex pressure to the target-plane
         tpp = padded_target*np.exp(1j*np.angle(tpp)*padded_target) # isolate target area
         
     lpp = ASM_bw(tpp, cell_spacing, target_dist, k)
     lpp = padded_aperture*np.exp(1j*np.angle(lpp)*padded_aperture) # isolate
-    tpp = ASM_fw(lpp, cell_spacing, target_dist, 1, k)
+    tpp = ASM_fw(lpp, cell_spacing, target_dist, k)
     return np.angle(lpp)[pw[0][0]:pw[0][0] + apsize[0], pw[1][0]:pw[1][0] + apsize[1]]
     
 
-def rotate_2d(cccc):
+def rotate_2d(x_vals, y_vals, theta):
     """
     Create a rotation matrix to find new x & z-coords for an angled board (y-coords will not change)
     
@@ -234,7 +260,82 @@ def rotate_2d(cccc):
                    (np.sin(np.radians(theta)), np.cos(np.radians(theta))) ))
     v = np.array((x_vals, y_vals))
     return r.dot(v)
+    
+    
+def transducer_rotate_and_translate(x, y, z, rotation_axis, tran_dist, tran_angle):
+    '''
+    rotates and translates a transducer coord system from being parallel to the AMM to being positioned correctly.
+    
+    params:
+    x,y,z = coords of the tranducer plane before rotation.
+    rotation_axis = axis in which the plane will be rotated w.r.t the origin.
+    tran_dist = distance between centre of AMM plan and centre of transducer plane (metres).
+    tran_angle = angle of rotation (degrees).
+    '''
+    xx, yy = np.meshgrid(x, y)
+    zz = np.zeros(xx.shape)
+    zz = zz + tran_dist # bring up to correct height above he AMM
+    if rotation_axis == "x":
+        # rotate
+        rot_y, rot_z = rotate_2d(y, z, tran_angle)
+        rot_yy, rot_zz = np.meshgrid(rot_y, rot_z)
+        rot_zz = rot_zz + tran_dist # bring up to correct height above he AMM
+        # translate
+        offset = tran_dist * np.sin(np.radians(tran_angle))/np.sin(np.radians(90 - tran_angle))
+        return xx + offset, rot_yy, rot_zz
+    elif rotation_axis == "y":
+        # rotate
+        rot_x, rot_z = rotate_2d(x, z, tran_angle)
+        rot_xx, rot_zz = np.meshgrid(rot_x, rot_z)
+        rot_zz = rot_zz + tran_dist # bring up to correct height above he AMM
+        # translate
+        offset = tran_dist * np.sin(np.radians(tran_angle))/np.sin(np.radians(90 - tran_angle))
+        return rot_xx, yy + offset, rot_zz
+    else:
+        print("'"+rotation_axis+"' is not a valid translation axis.")
 
+
+# def pesb(n, side_length, cell_spacing, angle, res, x_tcoords, y_tcoords, z_tcoords):
+    # '''Pressure_evaluation_space_builder'''
+    # # rotation matrix, assuming that the board is rotated in the x-z plane.
+    # x_tcoords, z_tcoords = rotate_2d(x_tcoords, z_tcoords, angle) 
+    # xx, yy = np.meshgrid(x_tcoords, y_tcoords) # Use meshgrid to create grid versions of x and y coords
+    # zz = np.array([z_tcoords for i in range(n)]) # create a meshgrid for z without making all of them 3D arrays
+    # # x, y & z vectors for transducer-plane sample points:
+    # tx, ty, tz = xx.flatten(), yy.flatten(), zz.flatten() 
+    
+    # ev = np.arange(-side_length, side_length, cell_spacing/res) # side length vector for the plane being propagated to
+    # ex, ey = np.meshgrid(ev,ev)
+    # # x, y & z vectors for evaluation-plane sample points:
+    # ez = np.zeros(len(ex)*len(ey))
+    # px, py, pz = ex.flatten(), ey.flatten(), ez.flatten() 
+    
+    # # Grids to describe the vector distances between each transducer & evaluation plane sample point.
+    # txv, pxv = np.meshgrid(tx,px)
+    # tyv, pyv = np.meshgrid(ty,py)
+    # tzv, pzv = np.meshgrid(tz,pz)
+    
+    # rxyz = np.sqrt((txv-pxv)**2 + (tyv-pyv)**2 + (tzv-pzv)**2) # Pythagoras for xyz distances
+    # rxy = np.sqrt((txv-pxv)**2 + (tyv-pyv)**2) # Pythagoras for xy distances
+    # return rxyz, rxy
+    
+# pressure_evaluation_space_builder
+def pesb(n, side_length, cell_spacing, angle, tx, ty, tz):
+    
+    ev = np.arange(-side_length, side_length, cell_spacing) # side length vector for the plane being propagated to
+    ex, ey = np.meshgrid(ev,ev)
+    # x, y & z vectors for evaluation-plane sample points:
+    px, py, pz = ex.reshape(len(ev)**2), ey.reshape(len(ev)**2), np.zeros(len(ev)**2) 
+    
+    # Grids to describe the vector distances between each transducer & evaluation plane sample point.
+    txv, pxv = np.meshgrid(tx,px)
+    tyv, pyv = np.meshgrid(ty,py)
+    tzv, pzv = np.meshgrid(tz,pz)
+    
+    rxyz = np.sqrt((txv-pxv)**2 + (tyv-pyv)**2 + (tzv-pzv)**2) # Pythagoras for xyz distances
+    rxy = np.sqrt((txv-pxv)**2 + (tyv-pyv)**2) # Pythagoras for xy distances
+    return rxyz, rxy
+    
 
 def PM_pesb(tm_shape, ev_res, dx, z_plane_height):
     """
@@ -328,3 +429,37 @@ def heightmap_builder(phasemap, wavelength, discretisation):
     phase_delay_map = 1 - normalised_phasemap  # delays phase values are 1 - phase on the surface
     height_map = phase_delay_map * (wavelength / 2)  # convert to height between 0 and wavelength/2 (meters)
     return height_map
+
+def circular_mean(phases):
+    """
+    find the circular mean of a set of phases
+    """
+    return np.arctan2(np.sum(np.sin(phases)), np.sum(np.cos(phases))) 
+
+def naive_pattern_generator(pattern, elem_shape):
+    '''
+    generate homogeneous naive phasemaps for a given pattern by naively
+    combining groups of elements and taking the circular mean.
+    
+    params:
+    pattern = the pattern to be segmented.
+    elem_shape = the shape of the naive segments.
+    '''
+    naive_pattern = np.zeros(pattern.shape) 
+    for row in range(int(pattern.shape[0]/elem_shape[0])):
+        for col in range(int(pattern.shape[0]/elem_shape[1])):
+            a1, a2, b1, b2 = row*elem_shape[0], (row+1)*elem_shape[0], col*elem_shape[1], (col+1)*elem_shape[1]
+            elem_mean = circular_mean(pattern[a1:a2, b1:b2])
+            naive_pattern[a1:a2, b1:b2] = np.tile(elem_mean, (elem_shape[0], elem_shape[1])) 
+    return naive_pattern
+    
+    
+def ssim_metric(imageA, imageB):
+    """
+    The SSIM image quality metric.
+    Compares luminosity constrast and structure of two images to
+    return a score between 1 (perfectly similar) and 0 (perfectly dissimilar).
+    """
+    from skimage.metrics import _structural_similarity as ssim
+    s = ssim.structural_similarity(imageA, imageB)
+    return s
