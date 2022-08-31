@@ -59,22 +59,20 @@ def ASM_bw(f, cell_spacing, target_plane, k):
     
 def ASM_prop(surface_pressure, cell_spacing, target_dist, resolution, k):
     """
-    Propagate a phasemap forward to a parallel plane at a given resolution.
-    Returns a complex pressure field. Assumes non-plane wave source.
+    Propagate complex pressure forward to a parallel plane at a given resolution.
+    Returns a complex pressure field.
     
     params:
     surface_pressure = complex surface pressure
     cell_spacing = seperation between cells on the metasurface
     target_dist = distance to propagation plane
-    res = returns this many sample points for each point in the input phasemap
+    resolution = returns this many sample points for each point in the input phasemap
     k = wavenumber
     """
     f = np.kron(surface_pressure, np.ones((resolution, resolution)))
     Nfft = f.shape
-    kx = (2*np.pi*(np.arange(-Nfft[0]/2, (Nfft[0])/2)/((cell_spacing/resolution)*Nfft[0]))) \
-    .reshape((1, Nfft[0])) # kx vector
-    ky = (2*np.pi*(np.arange(-Nfft[1]/2, (Nfft[1])/2)/((cell_spacing/resolution)*Nfft[1]))) \
-    .reshape((1, Nfft[1])) # ky vector
+    kx = (2*np.pi*(np.arange(-Nfft[0]/2, (Nfft[0])/2)/((cell_spacing/resolution)*Nfft[0]))).reshape((1, Nfft[0])) # kx vector
+    ky = (2*np.pi*(np.arange(-Nfft[1]/2, (Nfft[1])/2)/((cell_spacing/resolution)*Nfft[1]))).reshape((1, Nfft[1])) # ky vector
     F = np.fft.fft2(f) # 2D FT
     F = np.fft.fftshift(F) # Shift to the centre
     ## Propagate forwards    
@@ -82,6 +80,44 @@ def ASM_prop(surface_pressure, cell_spacing, target_dist, resolution, k):
     Gf = F*H.T # propagating the signal forward in Fourier space
     gf = np.fft.ifft2(np.fft.ifftshift(Gf)) # IFT & shift to return to real space
     return gf
+    
+    
+def ASM_prop_perpendicular(surface_pressure, cell_spacing, target_dist, z_height, cut_axis, resolution, k):
+    """
+    Propagate complex pressure forward to a perpendicular plane at a given resolution.
+    Returns a complex pressure field.
+    
+    params:
+    surface_pressure = complex surface pressure.
+    cell_spacing = seperation between cells on the metasurface.
+    target_dist = distance to propagation plane.
+    z_height = how far in the z-axis we want to propagate [m]
+    cut_axis = are we slicing in the x or y axes?
+    resolution = returns this many sample points for each point in the input phasemap.
+    k = wavenumber
+    """
+    if cut_axis == "x":
+        centrepoint = int(surface_pressure.shape[0]*resolution/2)
+        
+    elif cut_axis == "y":
+        centrepoint = int(surface_pressure.shape[1]*resolution/2)
+        
+    else:
+        print(cut_axis, "is not a valid axis, please enter 'x' or 'y'.")
+        return 
+    
+    step = cell_spacing/resolution
+    prop_range = np.arange(0, z_height + step, step)
+    xy_pressure_list = []
+    for target_dist in prop_range:
+        propagation = ASM_prop(surface_pressure, cell_spacing, target_dist, resolution, k)
+        if cut_axis == "x":
+            central_abs_pressure_vector = abs(propagation)[centrepoint]
+        elif cut_axis == "y":
+            central_abs_pressure_vector = abs(propagation.T)[centrepoint]
+        xy_pressure_list.append(central_abs_pressure_vector)
+
+    return np.flipud(np.array(xy_pressure_list))
     
 
 def points_vector_builder(centrepoint, x_sl, y_sl, pixel_spacing):
@@ -220,6 +256,31 @@ def target_builder_chars(char_list, font_file, fontsize, im_h):
     return target_images
     
     
+def focus_phasemap_builder(m, n, dx_AMM, focus_x, focus_y, focus_z, k):
+    
+    """
+    constructs a phasemap at the AMM plane to generate a focus at the certain point.
+    
+    params:
+    m, n = the x,y size of the metasurface measured in elements.
+    dx_AMM = side length of an element in meters.
+    focus_x, focus_y, focus_z = x,y,z coords of the focal point.
+    k = wavenumber
+    """
+    
+    # ---->  <----
+    x = np.arange(-(m/2 - .5)*dx_AMM, (m/2 + .5)*dx_AMM, dx_AMM)
+    y = np.arange(-(n/2 - .5)*dx_AMM, (n/2 + .5)*dx_AMM, dx_AMM)
+    xx, yy = np.meshgrid(x, y)
+    
+    # ---->  <----
+    travel_distance_array = np.sqrt((xx - focus_x)**2 + (yy - focus_y)**2 + (focus_z)**2)
+    total_phase_array = -travel_distance_array * k
+    norm_phase_array = np.remainder(total_phase_array, 2*np.pi) - np.pi # normalise between 0 and 2π [rads].
+    
+    return norm_phase_array
+    
+    
 def Iterative_GS(target_image, iterations, cell_spacing, target_dist, k):
     """
     implements the iterative GS algorithm to create phasemaps for a chosen target a chosen distance away.
@@ -338,20 +399,37 @@ def transducer_rotate_and_translate(x, y, z, rotation_axis, tran_dist, tran_angl
         print("'"+rotation_axis+"' is not a valid translation axis.")
 
 
-# def pesb(n, side_length, cell_spacing, angle, res, x_tcoords, y_tcoords, z_tcoords):
-    # '''Pressure_evaluation_space_builder'''
-    # # rotation matrix, assuming that the board is rotated in the x-z plane.
-    # x_tcoords, z_tcoords = rotate_2d(x_tcoords, z_tcoords, angle) 
-    # xx, yy = np.meshgrid(x_tcoords, y_tcoords) # Use meshgrid to create grid versions of x and y coords
-    # zz = np.array([z_tcoords for i in range(n)]) # create a meshgrid for z without making all of them 3D arrays
-    # # x, y & z vectors for transducer-plane sample points:
-    # tx, ty, tz = xx.flatten(), yy.flatten(), zz.flatten() 
+def pesb(side_length_x, side_length_y, cell_spacing, angle, tx, ty, tz):
+    ''' Pressure evaluation space builder '''
+    # side length vectors for the plane being propagated to
+    ex = np.arange(-side_length_x/2 + cell_spacing/2, side_length_x/2 + cell_spacing/2, cell_spacing) 
+    ey = np.arange(-side_length_y/2 + cell_spacing/2, side_length_y/2 + cell_spacing/2, cell_spacing) 
     
-    # ev = np.arange(-side_length, side_length, cell_spacing/res) # side length vector for the plane being propagated to
-    # ex, ey = np.meshgrid(ev,ev)
+    exx, eyy = np.meshgrid(ex, ey)
+    # x, y & z vectors for evaluation-plane sample points:
+    px, py, pz = exx.flatten(), eyy.flatten(), np.zeros_like(exx.flatten())
+    
+    # Grids to describe the vector distances between each transducer & evaluation plane sample point.
+    txv, pxv = np.meshgrid(tx,px)
+    tyv, pyv = np.meshgrid(ty,py)
+    tzv, pzv = np.meshgrid(tz,pz)
+    
+    rxyz = np.sqrt((txv-pxv)**2 + (tyv-pyv)**2 + (tzv-pzv)**2) # Pythagoras for xyz distances
+    rxy = np.sqrt((txv-pxv)**2 + (tyv-pyv)**2) # Pythagoras for xy distances
+    return rxyz, rxy
+
+
+# def pesb(side_length_x, side_length_y, AMM_dist, cell_spacing, tx, ty, tz):
+
+    # """pressure_evaluation_space_builder"""
+    
+    # ex = np.arange(-side_length_x/2 + cell_spacing/2, side_length_x/2 + cell_spacing/2, cell_spacing) # x side length vector 
+    # ey = np.arange(-side_length_y/2 + cell_spacing/2, side_length_y/2 + cell_spacing/2, cell_spacing) # y side length vector
+    
+    # exx, eyy = np.meshgrid(ex, ey)
     # # x, y & z vectors for evaluation-plane sample points:
-    # ez = np.zeros(len(ex)*len(ey))
-    # px, py, pz = ex.flatten(), ey.flatten(), ez.flatten() 
+    # px, py, pz = exx.flatten(), eyy.flatten(), AMM_dist*np.ones_like(exx.flatten())
+
     
     # # Grids to describe the vector distances between each transducer & evaluation plane sample point.
     # txv, pxv = np.meshgrid(tx,px)
@@ -360,17 +438,23 @@ def transducer_rotate_and_translate(x, y, z, rotation_axis, tran_dist, tran_angl
     
     # rxyz = np.sqrt((txv-pxv)**2 + (tyv-pyv)**2 + (tzv-pzv)**2) # Pythagoras for xyz distances
     # rxy = np.sqrt((txv-pxv)**2 + (tyv-pyv)**2) # Pythagoras for xy distances
+    
     # return rxyz, rxy
-    
 
-def pesb(n, side_length, cell_spacing, angle, tx, ty, tz):
-
-    """pressure_evaluation_space_builder"""
+def pesb_old(n, side_length, cell_spacing, angle, res, x_tcoords, y_tcoords, z_tcoords):
+    '''Pressure_evaluation_space_builder'''
+    # rotation matrix, assuming that the board is rotated in the x-z plane.
+    x_tcoords, z_tcoords = rotate_2d(x_tcoords, z_tcoords, angle) 
+    xx, yy = np.meshgrid(x_tcoords, y_tcoords) # Use meshgrid to create grid versions of x and y coords
+    zz = np.array([z_tcoords for i in range(n)]) # create a meshgrid for z without making all of them 3D arrays
+    # x, y & z vectors for transducer-plane sample points:
+    tx, ty, tz = xx.flatten(), yy.flatten(), zz.flatten() 
     
-    ev = np.arange(-side_length, side_length, cell_spacing) # side length vector for the plane being propagated to
+    ev = np.arange(-side_length, side_length, cell_spacing/res) # side length vector for the plane being propagated to
     ex, ey = np.meshgrid(ev,ev)
     # x, y & z vectors for evaluation-plane sample points:
-    px, py, pz = ex.reshape(len(ev)**2), ey.reshape(len(ev)**2), np.zeros(len(ev)**2) 
+    ez = np.zeros(len(ex)*len(ey))
+    px, py, pz = ex.flatten(), ey.flatten(), ez.flatten() 
     
     # Grids to describe the vector distances between each transducer & evaluation plane sample point.
     txv, pxv = np.meshgrid(tx,px)
@@ -457,7 +541,7 @@ def heightmap_builder(phasemap, wavelength, discretisation_flag, discretisation=
     
     params:
     phasemap = the analogue phasemap to be converted to a heightmap.
-    wavelength = we kee this as a variable in case we want to do multifrequency modulation.
+    wavelength = we keep this as a variable in case we want to do multifrequency modulation.
     discretisation = how many discrete pahse should the heightmap be limited to?
     They will be evenly spread throughout a 2pi range.
     """
@@ -493,16 +577,16 @@ def brickmap_builder(phasemap, discretisation):
     """
     db = [np.round(i, 4) for i in np.arange(-np.pi, np.pi, (2 * np.pi) / discretisation)]
     brickmap = []
-    n = phasemap.shape[0]
-    # reshape into n**2-by-1 vector and cycle through elements
-    for analogue_phase in np.array(phasemap).reshape(n ** 2):  
+    m, n = phasemap.shape
+    # reshape into n*m-by-1 vector and cycle through elements
+    for analogue_phase in np.array(phasemap).reshape(m*n):  
         current = db[0]  # dummy variable set to the first discretised brick phase delay value
         for brick_phase in db[1:]:  # cycle through analogue phase delays
             # assign closest discrete brick value
             if np.abs(analogue_phase - current) > np.abs(analogue_phase - brick_phase): 
                 current = brick_phase  # redefine dummy variable as closest discrete phase delay
         brickmap.append(db.index(current))  # discretised phase-delay map for each element
-    brickmap = np.array(brickmap).reshape((n, n))  # reshape by into n-by-n matrix
+    brickmap = np.array(brickmap).reshape((m, n))  # reshape by into m-by-n matrix
     return brickmap
     
     
@@ -756,3 +840,36 @@ def contour_rect(im):
     lines += [([s[1]+.5, e[1]+.5], [s[0]-.5, s[0]-.5]) for s, e in zip(starts, ends)]
     return lines
  
+ 
+ # def CS_structure_plotter(ax, segmented_CS, font_size, edge_line_width, CS_labels=True, coalition_lines=True):
+
+    # CS_map_array = np.zeros(input_phasemaps[0].size) # segment array = positions of the various coalitions   
+    # for i, coalition in enumerate(segmented_CS):
+        # for pixel in coalition:
+            # CS_map_array[pixel] = i
+    # CS_map_array = np.reshape(CS_map_array, (m, n))
+
+    # cmap_list = [[1., 1., 1., 1.] for i in range(target_CS_length)]
+    # CS_cmap = ListedColormap(cmap_list)
+    # ax.imshow(CS_map_array, cmap=plt.get_cmap(CS_cmap))
+
+    # if CS_labels:
+        # for i, value in enumerate(np.reshape(CS_map_array, CS_map_array.size)):
+            # coord = PixIDToPos((m, n), i)
+            # plt.text(coord[1], coord[0], str(int(value+1)), ha="center", va="center", fontsize=font_size)
+
+    # if coalition_lines:
+        # contour_lines = []
+        # for ID in range(len(segmented_CS)):
+            # coalition = np.zeros(CS_map_array.size)
+            # coalition[list(segmented_CS[ID])] = 1
+            # coalition = coalition.reshape(CS_map_array.shape)
+            # contour_lines.append(contour_rect(coalition))
+        # for lines in contour_lines:
+            # for line in lines:
+                # plt.plot(line[1], line[0], color='k', lw=edge_line_width)
+
+    # for axis in ['top','bottom','left','right']:
+        # ax.spines[axis].set_linewidth(edge_line_width)    
+    # ax.tick_params(axis='both', which='both', bottom=False, top=False, left=False,
+                   # right=False, labelbottom=False, labelleft=False)
