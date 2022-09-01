@@ -2,7 +2,8 @@ import numpy as np
 import os, math, salome, GEOM, killSalome, time
 from salome.geom import geomBuilder
 from os import path
-main_path = r"E:/OneDrive - University College London/Activation of Metasurface/Ben Motors/SSM_assembly/static/static_lenses/focus_m12_n12_f=6.0lam_to_14.0lam_step=2.0lam_assembly"
+main_path = r"C:/Users/James/OneDrive - University College London/Activation of Metasurface/Ben Motors/SSM_assembly/static/static_lenses/focus_m12_n12_f=6.0lam_to_14.0lam_step=2.0lam"
+# main_path = r"E:/OneDrive - University College London/Activation of Metasurface/Ben Motors/SSM_assembly/static/static_lenses/focus_m12_n12_f=6.0lam_to_14.0lam_step=2.0lam"
 geompy = geomBuilder.New() # Creation of a geomBuilder instance which provides GEOM operations (used for geometry)
 
 c = 343 # m/s
@@ -11,7 +12,7 @@ lam = c/v # m
 elem_side = (lam/2)
 buffer = lam/4
 
-filename = "seg_heightmap_ID=0"
+filename = "seg_heightmap_ID=5"
 heightmap = np.load(main_path + "/heightmaps/" + filename + ".npy")
 m, n = heightmap.shape
 
