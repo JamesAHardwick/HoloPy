@@ -7,12 +7,6 @@ import itertools as it
 import math as math
 from scipy.special import comb
 
-
-def circular_mean(phases):
-    """
-    find the circular mean of a set of phases
-    """
-    return np.arctan2(np.sum(np.sin(phases)), np.sum(np.cos(phases)))
     
     
 def circular_distance(angle1, angle2):
@@ -20,13 +14,43 @@ def circular_distance(angle1, angle2):
     return np.pi - abs(np.pi - abs(angle1 - angle2))
     
     
+# def signed_circular_distance(angle1, angle2):
+    # '''
+    # Find the circular difference between two angles.
+    # The sign indicates whether the angle2 is clockwise or anticlockwise w.r.t angle1.
+    # This is useful when one intends to convert from phase to heights.
+    # '''
+    # return min(angle2-angle1, angle2-angle1+2*np.pi, angle2-angle1-2*np.pi, key=abs)
+    
+    
 def signed_circular_distance(angle1, angle2):
-    '''
-    Find the circular difference between two angles.
-    The sign indicates whether the angle2 is clockwise or anticlockwise w.r.t angle1.
+    
+    """
+    
+    Find the circular difference between two angles. The sign indicates whether the angle2 is clockwise or anticlockwise w.r.t angle1.
     This is useful when one intends to convert from phase to heights.
-    '''
-    return min(angle2-angle1, angle2-angle1+2*np.pi, angle2-angle1-2*np.pi, key=abs)
+    
+    args:
+        angle1:
+        angle2:
+        
+    returns:
+        circular_difference_matrix:
+        
+    """
+    
+    vector1, vector2 = np.array(angle1).flatten(), np.array(angle2).flatten()
+    circular_difference_vector = np.zeros_like(vector1)
+    
+    for i in range(len(circular_difference_vector)):
+        circular_difference_vector[i] = min(vector2[i]-vector1[i],
+                                  vector2[i]-vector1[i]+2*np.pi,
+                                  vector2[i]-vector1[i]-2*np.pi,
+                                  key=abs)
+    
+    circular_difference_matrix = circular_difference_vector.reshape(angle1.shape)    
+    
+    return circular_difference_matrix
 
 
 def ssim_metric(imageA, imageB, registration_flag=False):
@@ -148,7 +172,7 @@ def prop_thresholder(prop, threshold):
     return prop
      
     
-def focus_phasemap_builder(AMM_points, focal_point_position):
+def focus_phasemap_builder(AMM_points, focal_point_position, k):
 
     """
     Builds a phasemap for an AMM or PAT creating a focus at some point in 3D space.
@@ -156,6 +180,7 @@ def focus_phasemap_builder(AMM_points, focal_point_position):
     args:
         AMM_points: matrix describing the postitions of elements on the AMM or PAT surface.
         focal_point_position: (x, y, z) coords of the focus.
+        k: wavenumber
         
     returns:
         norm_phase_array: matrix of phase delays from -pi to pi, with the same size as AMM_points, describing the

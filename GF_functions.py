@@ -106,17 +106,20 @@ def GF_propagator_function_builder(reflector_points, eval_points, normals, areas
     return H
 
 
-def GF_prop(AMM_surface_pressure, prop_direction):
+def GF_prop(AMM_surface_pressure, H, prop_direction):
     
     """
-    find the product of the propagator and AMM surface pressure to find pressure at evaluation plane
+    
+    find the product of the propagator, H, and AMM surface pressure to find pressure at evaluation plane.
     
     args:
         AMM_surface_pressure: complex pressure matrix on AMM surface.
+        H: the propagator function defined using "GF_propagator_function_builder" 
         prop_direction: direction of propagation ("forward" or "backward").
         
     returns:
         complex pressure matrix at the evaluation plane.
+    
     """
     
     # forward propagate from AMM plane to evaluation plane

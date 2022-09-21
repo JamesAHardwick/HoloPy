@@ -8,6 +8,127 @@ import math as math
 from scipy.special import comb
 
 
+def basic_plotter(nrows, ncols, figsize,
+                  plottable_list,
+                  cmap_list,
+                  vmax_list, vmin_list,
+                  points_list,
+                  colorbar_flag=True,
+                  extents_flag=True):
+                  
+                  
+    """
+    
+    Basic plotting function to plot images using matplotlib's imshow call.
+    
+    args:
+        nrows, ncols:
+        figsize:
+        plottable_list:
+        cmap_list:
+        vmax_list, vmin_list:
+        points_list:
+        colorbar_flag:
+        extents_flag:
+    
+    returns:
+        fig, ax:
+        
+    """
+    
+    from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
+
+    fig, ax = plt.subplots(nrows, ncols, figsize=figsize)
+    
+    if nrows == ncols == 1:
+        
+        if extents_flag:
+            
+            extents = extents_finder(points_list[0])
+            
+            im = ax.imshow(plottable_list[0], cmap=cmap_list[0],
+                           vmax=vmax_list[0], vmin=vmin_list[0],
+                           extent=extents)
+    
+        else:
+                
+            im = ax.imshow(abs(plottable_list[0]), cmap=cmap_list[0],
+                           vmax=vmax_list[0], vmin=vmin_list[0])
+
+            plot_edger(ax, edge_line_width=2)
+        
+        if colorbar_flag:
+
+                divider = make_axes_locatable(ax)
+                cax = divider.append_axes("right", size='5%', pad=.1)
+                plt.colorbar(im, cax=cax)
+                
+    else:
+    
+        for i, plottable in enumerate(plottable_list):
+            
+            if extents_flag:
+                
+                extents = extents_finder(points_list[i])
+            
+                im = ax.flat[i].imshow(plottable, cmap=cmap_list[i],
+                               vmax=vmax_list[i], vmin=vmin_list[i],
+                               extent=extents)
+                
+            else:
+
+                im = ax.flat[i].imshow(plottable, cmap=cmap_list[i],
+                                       vmax=vmax_list[i], vmin=vmin_list[i])
+
+                plot_edger(ax.flat[i], edge_line_width=2)
+
+            if colorbar_flag:
+
+                divider = make_axes_locatable(ax.flat[i])
+                cax = divider.append_axes("right", size='5%', pad=.1)
+                plt.colorbar(im, cax=cax)
+    
+    return fig, ax
+
+
+def extents_finder(points):
+
+
+    """
+    
+    Finds the extents of the plane being plotted
+    
+    args:
+        points: list of [x, y, z] coordinates for the plane being plotted.
+    
+    returns:
+        extents: the extents in the yz, xz or xy plane for the plane to be passed to the plt.imshow call.
+        
+    """
+    
+    
+    full_extents = [(1000*np.amin(points[0]), 1000*np.amax(points[0])),
+                    (1000*np.amin(points[1]), 1000*np.amax(points[1])), 
+                    (1000*np.amin(points[2]), 1000*np.amax(points[2]))]
+    
+    # ----> yz plane <----
+    if full_extents[0][0] == full_extents[0][1]:
+    
+        extents = [full_extents[1][0], full_extents[1][1], full_extents[2][0], full_extents[2][1]]
+    
+    # ----> xz plane <----
+    elif full_extents[1][0] == full_extents[1][1]:
+    
+        extents = [full_extents[0][0], full_extents[0][1], full_extents[2][0], full_extents[2][1]]
+        
+    # ----> xy plane <----
+    elif full_extents[2][0] == full_extents[2][1]:
+    
+        extents = [full_extents[0][0], full_extents[0][1], full_extents[1][0], full_extents[1][1]]
+    
+    return extents
+
+
 def rand_cmap(nlabels, type='bright', first_color_black=True, last_color_black=False, verbose=True):
     
     """
@@ -120,7 +241,7 @@ def contour_rect(im):
     return lines
     
     
-def coalition_line_drawer(ax, segmented_CS, m, n, num_pixels, edge_line_width):
+def coalition_line_drawer(ax, segmented_CS, m, n, edge_line_width):
     
     """
     
@@ -138,7 +259,7 @@ def coalition_line_drawer(ax, segmented_CS, m, n, num_pixels, edge_line_width):
         
     """
     
-    CS_map_array = np.zeros(num_pixels) # segment array = positions of the various coalitions   
+    CS_map_array = np.zeros(m*n) # segment array = positions of the various coalitions   
     for i, coalition in enumerate(segmented_CS):
         for pixel in coalition:
             CS_map_array[pixel] = i
@@ -156,7 +277,7 @@ def coalition_line_drawer(ax, segmented_CS, m, n, num_pixels, edge_line_width):
     return None
         
         
-def plot_edger():
+def plot_edger(ax, edge_line_width):
 
     """
     
@@ -178,7 +299,7 @@ def plot_edger():
     return None    
     
     
-def CS_structure_plotter(ax, segmented_CS, font_size, edge_line_width, CS_labels=True, coalition_lines=True):
+def CS_structure_plotter(ax, segmented_CS, m, n, target_CS_length, font_size, edge_line_width, CS_labels=True, coalition_lines=True):
 
     """
     
@@ -187,6 +308,7 @@ def CS_structure_plotter(ax, segmented_CS, font_size, edge_line_width, CS_labels
     args:
         ax:
         segmented_CS:
+        m, n:
         font_size:
         edge_line_width:
         CS_labels:
@@ -197,7 +319,15 @@ def CS_structure_plotter(ax, segmented_CS, font_size, edge_line_width, CS_labels
     
     """
 
-    CS_map_array = np.zeros(input_phasemaps[0].size) # segment array = positions of the various coalitions  
+    from matplotlib.colors import ListedColormap, LinearSegmentedColormap
+    
+        
+    def PixIDToPos(apsize, ID):
+        row = np.mod(ID, apsize[1])
+        col = (ID - np.mod(ID, apsize[1])) / apsize[1]
+        return int(col), int(row)
+
+    CS_map_array = np.zeros(m*n) # segment array = positions of the various coalitions  
     
     for i, coalition in enumerate(segmented_CS):
         for pixel in coalition:
@@ -217,6 +347,44 @@ def CS_structure_plotter(ax, segmented_CS, font_size, edge_line_width, CS_labels
             ax.text(coord[1], coord[0], str(int(value+1)), ha="center", va="center", fontsize=font_size)
     
     if coalition_lines:
-        coalition_line_drawer(ax, segmented_CS, m, n, num_pixels, edge_line_width)
+        coalition_line_drawer(ax, segmented_CS, m, n, edge_line_width)
     
     return None
+    
+    
+def pareto_plotter(seg_CS_list, seg_mean_qualities_list, CS_ID, save_folder_path,
+                   selected_data_label="selected data", data_label="data", save_flag=False):
+    
+    fig, ax = plt.subplots(1, 1, figsize=(14, 14))
+#     ax.set_title(dataset[10:].replace('_', " "), fontsize=20, pad=10)
+    
+    num_pixels = len(seg_mean_qualities_list)
+    marker_size = 250
+    color_range = plt.get_cmap("rainbow", 6)
+    
+    # ************* plot data for constant-diffs segmentation ****************
+    ax.scatter(seg_CS_list, seg_mean_qualities_list, lw=2, color=color_range(1), label=data_label)
+    ax.scatter(seg_CS_list[CS_ID], seg_mean_qualities_list[CS_ID], lw=2, color="r", label=selected_data_label)
+
+    # x-axis formatting
+    ax.set_xlabel("Number of Actuations $n_A$", fontsize=24)
+    ax.set_xticks(list(np.arange(0, num_pixels+1, 4*np.sqrt(num_pixels))))
+    ax.set_xticklabels([int(ix) for ix in np.arange(0, num_pixels+1, 4*np.sqrt(num_pixels))], rotation = 70, fontsize=24)
+
+    # y-axis formatting
+    ax.set_ylabel(r"Mean Acoustic Image Quality $\overline{Q}$", fontsize=28, labelpad=10)
+    ax.set_yticks(list(np.arange(0, 1.01, 0.1)))
+    ax.set_yticklabels(list(np.round(np.arange(0, 1.01, 0.1), 2)), fontsize=24)
+
+    # general formatting
+    ax.grid(True, axis='both', which='major', alpha=0.5, zorder=0)
+    for axis in ['top','bottom','left','right']:
+        ax.spines[axis].set_linewidth(3)
+    ax.tick_params('both', length=10, width=3, which='major')
+    ax.tick_params('both', length=10, width=1.5, which='minor')
+    ax.legend(loc="lower right", fontsize=25)
+        
+    # ************* saving *************
+    if save_flag:    
+        plt.savefig(save_folder_path+"/pareto_front_plot.png", bbox_inches='tight', transparent=True, dpi=500)
+        print("saved to...", save_folder_path)
