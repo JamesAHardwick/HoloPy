@@ -89,6 +89,43 @@ def basic_plotter(nrows, ncols, figsize,
                 plt.colorbar(im, cax=cax)
     
     return fig, ax
+    
+    
+def pf_shape(sidelengths, resolution, lam):
+
+    """
+    
+    reshapes a propagation with the correct dimensions and in the correct plane.
+    
+    args:
+        sidelengths: distances which the propagation plane extends in the form: [(-x, +x), (-y, +y), (-z, +z)].
+        resolution: how many points will there be in the propagation plane for each point in the source plane?
+        
+    returns:
+        shape_tuple: a tuple containing the 2D dimensions for the propagation to be reshaped to.
+        
+    
+    """
+    
+    # ----> yz plane <----
+    if sidelengths[0] == (0, 0):
+        
+        shape_tuple = (int(2*resolution*(sidelengths[2][0] + sidelengths[2][1])/lam),
+                       int(2*resolution*(sidelengths[1][0] + sidelengths[1][1])/lam))
+    
+    # ----> xz plane <----
+    elif sidelengths[1] == (0, 0):
+        
+        shape_tuple = (int(2*resolution*(sidelengths[2][0] + sidelengths[2][1])/lam),
+                       int(2*resolution*(sidelengths[0][0] + sidelengths[0][1])/lam)) 
+    
+    # ----> xy plane <----
+    elif sidelengths[2] == (0, 0):
+        
+        shape_tuple = (int(2*resolution*(sidelengths[1][0] + sidelengths[1][1])/lam),
+                       int(2*resolution*(sidelengths[0][0] + sidelengths[0][1])/lam))
+    
+    return shape_tuple
 
 
 def extents_finder(points):
@@ -350,6 +387,84 @@ def CS_structure_plotter(ax, segmented_CS, m, n, target_CS_length, font_size, ed
         coalition_line_drawer(ax, segmented_CS, m, n, edge_line_width)
     
     return None
+    
+    
+def transducer_position_plotter(ax, tx_rot, ty_rot, tz_rot, rot_dir,
+                                AMM_points, rgba_vec,
+                                dx_AMM, dx_tran, fontsize):
+
+    """
+    
+    Creates a 3D plot showing the position of the transducer and corresponding phase/amplitude colormap on the AMM surface.
+    
+    args:
+        ax: axis for plotting.
+        tx_rot: position of transducer plane centrepoint in x.
+        ty_rot: position of transducer plane centrepoint in y.
+        tz_rot: position of transducer plane centrepoint in z.
+        rot_dir: direction of rotation
+        AMM_points: list of x, y and z coords for points of the AMM plane.
+        rgba_vec: vector of rgba color values for AMM elements.
+        dx_AMM: spacing between AMM elements
+        dx_tran: spacing between transducer elements
+        fontsize: for axis labels and transducer label.
+    
+    returns:
+        ax: updated axis for plotting.
+    
+    """
+
+    from matplotlib.patches import Rectangle
+    import mpl_toolkits.mplot3d.art3d as art3d
+    
+    ax = plt.axes(projection='3d')  
+    
+    ax.azim = -45 # y rotation (default=270)
+    ax.elev = 21  # x rotation (default=0)
+
+    ax.set_xlabel("x", fontsize=fontsize, weight="bold", labelpad=10)
+    ax.set_ylabel("y", fontsize=fontsize, weight="bold", labelpad=10)
+    ax.set_zlabel("z", fontsize=fontsize, weight="bold")
+
+    ax.set_xlim(1.5*np.min(AMM_points[0]), 1.5*np.max(AMM_points[0]))
+    ax.set_ylim(1.5*np.min(AMM_points[1]), 1.5*np.max(AMM_points[1]))
+    ax.set_zlim(0, np.max(tz_rot))
+
+    # draw the AMM surface
+    for i in range(len(AMM_points[0][0])):
+        square = Rectangle((AMM_points[0][0][i]-dx_AMM/2, AMM_points[1][0][i]-dx_AMM/2),
+                           width=dx_AMM, height=dx_AMM,
+                           color=rgba_vec[i], zorder=0)
+        ax.add_patch(square)
+        art3d.pathpatch_2d_to_3d(square, z=0, zdir="z")
+
+    # plot transducer as a point
+    ax.scatter(tx_rot, ty_rot, tz_rot, c="k", s=100)
+    
+    # draw the triangle connecting the transducer and the AMM surface
+    if rot_dir == "x":
+        opposite = ax.plot([0, np.mean(tx_rot)], [0, 0], [0, 0],
+                           c="k", ls=":", zorder=len(AMM_points[0][0]))
+        adjacent = ax.plot([np.mean(tx_rot), np.mean(tx_rot)], [0, 0], [0, np.mean(tz_rot)],
+                           c="k", ls=":", zorder=len(AMM_points[0][0]))
+        hypotenuse = ax.plot([0, np.mean(tx_rot)], [0, 0], [0, np.mean(tz_rot)],
+                             c="k", ls="-", zorder=len(AMM_points[0][0]))
+        ax.text(np.mean(tx_rot), dx_tran/2, np.mean(tz_rot)+dx_tran/2, "t", fontsize=fontsize+5, va="center", ha="center")
+    
+    elif rot_dir == "y":
+        opposite = ax.plot([0, 0], [0, np.mean(ty_rot)], [0, 0],
+                           c="k", ls=":", zorder=len(AMM_points[0][0]))
+        adjacent = ax.plot([0, 0], [np.mean(ty_rot), np.mean(ty_rot)], [0, np.mean(tz_rot)],
+                           c="k", ls=":", zorder=len(AMM_points[0][0]))
+        hypotenuse = ax.plot([0, 0], [0, np.mean(ty_rot)],
+                             [0, np.mean(tz_rot)], c="k", ls="-", zorder=len(AMM_points[0][0]))
+        ax.text(dx_tran/2, np.mean(ty_rot), np.mean(tz_rot)+dx_tran/2, "t", fontsize=fontsize+5, va="center", ha="center")
+        
+    else:
+        print(rot_dir, "is not a valid rotation direction, please enter 'x' or 'y'.")
+        return
+
+    return ax
     
     
 def pareto_plotter(seg_CS_list, seg_mean_qualities_list, CS_ID, save_folder_path,

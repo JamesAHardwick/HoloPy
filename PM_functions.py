@@ -192,8 +192,9 @@ def piston_model_matrix(rxy, rxyz, k, p0=8.02, d=10.5/1000):
     d = (10.5/1000 [m]) spacing between Murata transducers in a lev board.
     """
     # 1st order Bessel function
-    b = k*(d/2)*(rxy/rxyz)
-    # taylor expansion of the bessel function
-    tay = (1/2)-(b**2/16)+(b**4/384)-(b**6/18432)+(b**8/1474560)-(b**10/176947200)
+    J_arg = k*(d/2)*(rxy/rxyz)
+    
+    # taylor expansion of first order Bessel function over its agrument (J_1(J_arg)/J_arg)
+    tay = (1/2)-(J_arg**2/16)+(J_arg**4/384)-(J_arg**6/18432)+(J_arg**8/1474560)-(J_arg**10/176947200)
+    
     return 2*p0*(tay/rxyz)*np.exp(1j*k*rxyz)
-    # return 2*(p0/b)*(tay/rxyz)*np.exp(1j*k*rxyz)

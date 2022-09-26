@@ -27,16 +27,16 @@ def points_vector_builder(centrepoint, extents, pixel_spacing):
     """
 
     # side vectors for evaluation point matrix
-    x = np.arange(centrepoint[0] - (extents[0][0]/2) + (pixel_spacing/2),
-                  centrepoint[0] + (extents[0][1]/2),
+    x = np.arange(centrepoint[0] - (extents[0][0]) + (pixel_spacing/2),
+                  centrepoint[0] + (extents[0][1]),
                   pixel_spacing)
     
-    y = np.arange(centrepoint[1] - (extents[1][0]/2) + (pixel_spacing/2),
-                  centrepoint[1] + (extents[1][1]/2),
+    y = np.arange(centrepoint[1] - (extents[1][0]) + (pixel_spacing/2),
+                  centrepoint[1] + (extents[1][1]),
                   pixel_spacing)
     
-    z = np.arange(centrepoint[2] - (extents[2][0]/2) + (pixel_spacing/2),
-                  centrepoint[2] + (extents[2][1]/2),
+    z = np.arange(centrepoint[2] - (extents[2][0]) + (pixel_spacing/2),
+                  centrepoint[2] + (extents[2][1]),
                   pixel_spacing)
     
     # if yz plane

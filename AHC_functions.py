@@ -560,13 +560,78 @@ def segmented_phasemaps_list_builder(CS_data, input_phasemaps, post_processed_da
 
         if data_save_flag:
             np.save(post_processed_data_folder+"/seg_phasemaps_list.npy", seg_phasemaps_list)
+        
+        if verbose_flag:
+            print("...done.")
             
     return seg_phasemaps_list
     
     
+# def segmented_props_list_builder(CS_data, seg_phasemaps_list, post_processed_data_folder,
+                            # Pf, m_xy_eval, n_xy_eval, H_list,
+                            # data_save_flag, override_flag, verbose_flag):
+    
+    # """
+    
+    # Segmented Props
+    
+    # args:
+        # CS_data: list of clustering structures of sizes={1, m*n, 1}.
+        # seg_phasemaps_list: list of lists of segmented phasemaps.
+        # post_processed_data_folder: folder to save the list of segmented phasemaps.
+        # Pf:
+        # m_xy_eval, n_xy_eval:
+        # H_list:
+        # data_save_flag: if yes, the segmented phasemaps is saved in the above folder.
+        # override_flag: if yes, ignore data already present in post_processed_data_folder and recalculate.
+        # verbose_flag: if yes, the function will print each iteration as it is calculated
+
+        
+    # returns:
+        # seg_props_list: returns a list of lists
+    
+    # """
+
+    # from GF_functions import GF_prop
+
+    # seg_props_list = []
+
+    # # If seg_props_list_"+prop_plane+".npy already exists, then load it instead of recalculating
+    # if os.path.exists(post_processed_data_folder+"/seg_props_list_"+prop_plane+".npy") and override_flag == False:
+        
+        # if verbose_flag:
+            # print("loading segmented propagation data from... "+post_processed_data_folder+"/seg_props_list_"+prop_plane+".npy")
+            
+        # seg_props_list = np.load(post_processed_data_folder+"/seg_props_list_"+prop_plane+".npy")
+
+    # # else, perform the calculation and save to the post processing folder for this dataset   
+    # else:
+        
+        # if verbose_flag:
+            # print("calculating segmented propagation data...")
+            
+        # for CS_ID, CS in enumerate(CS_data):
+            
+            # seg_props = []
+              
+            # for i, seg_phasemap in enumerate(seg_phasemaps_list[CS_ID]):
+
+                # surface_pressure = abs(Pf)*np.exp(1j*(seg_phasemap + np.angle(Pf)))
+                # prop_vec = GF_prop(surface_pressure.flatten(), H_list[i], "forward")
+                # prop_mat = prop_vec.reshape((m_xy_eval, n_xy_eval))
+                # seg_props.append(prop_mat)
+                
+            # seg_props_list.append(seg_props)
+
+        # if data_save_flag:
+            # np.save(post_processed_data_folder+"/seg_props_list_"+prop_plane+".npy", seg_props_list)
+            
+        # return seg_props_list
+        
+        
 def segmented_props_list_builder(CS_data, seg_phasemaps_list, post_processed_data_folder,
-                            Pf, m_xy_eval, n_xy_eval, H_list,
-                            data_save_flag, override_flag, verbose_flag):
+                                 Pf, output_shape, H_list, prop_plane,
+                                 data_save_flag, override_flag, verbose_flag):
     
     """
     
@@ -577,7 +642,7 @@ def segmented_props_list_builder(CS_data, seg_phasemaps_list, post_processed_dat
         seg_phasemaps_list: list of lists of segmented phasemaps.
         post_processed_data_folder: folder to save the list of segmented phasemaps.
         Pf:
-        m_xy_eval, n_xy_eval:
+        output_shape:
         H_list:
         data_save_flag: if yes, the segmented phasemaps is saved in the above folder.
         override_flag: if yes, ignore data already present in post_processed_data_folder and recalculate.
@@ -593,19 +658,19 @@ def segmented_props_list_builder(CS_data, seg_phasemaps_list, post_processed_dat
 
     seg_props_list = []
 
-    # If seg_props_list.npy already exists, then load it instead of recalculating
-    if os.path.exists(post_processed_data_folder+"/seg_props_list.npy") and override_flag == False:
+    # If seg_props_list_"+prop_plane+".npy already exists, then load it instead of recalculating
+    if os.path.exists(post_processed_data_folder+"/seg_props_list_"+prop_plane+".npy") and override_flag == False:
         
         if verbose_flag:
-            print("loading segmented propagation data from... "+post_processed_data_folder+"/seg_props_list.npy")
+            print("loading segmented propagation data from... "+post_processed_data_folder+"/seg_props_list_"+prop_plane+".npy")
             
-        seg_props_list = np.load(post_processed_data_folder+"/seg_props_list.npy")
+        seg_props_list = np.load(post_processed_data_folder+"/seg_props_list_"+prop_plane+".npy")
 
     # else, perform the calculation and save to the post processing folder for this dataset   
     else:
         
         if verbose_flag:
-            print("calculating segmented propagation data...")
+            print("calculating segmented "+prop_plane+" propagation data...")
             
         for CS_ID, CS in enumerate(CS_data):
             
@@ -615,13 +680,16 @@ def segmented_props_list_builder(CS_data, seg_phasemaps_list, post_processed_dat
 
                 surface_pressure = abs(Pf)*np.exp(1j*(seg_phasemap + np.angle(Pf)))
                 prop_vec = GF_prop(surface_pressure.flatten(), H_list[i], "forward")
-                prop_mat = prop_vec.reshape((m_xy_eval, n_xy_eval))
-                seg_props.append(prop_mat)
+                prop_mat = prop_vec.reshape(output_shape)
+                seg_props.append(np.flipud(prop_mat))
                 
             seg_props_list.append(seg_props)
 
         if data_save_flag:
-            np.save(post_processed_data_folder+"/seg_props_list.npy", seg_props_list)
+            np.save(post_processed_data_folder+"/seg_props_list_"+prop_plane+".npy", seg_props_list)
+            
+        if verbose_flag:
+            print("...done")
             
         return seg_props_list
     
@@ -696,6 +764,9 @@ def segmented_qualities_list_builder(CS_data, input_propagations, seg_propagatio
             seg_qualities_list.append(quality(input_propagations, seg_propagations_list[CS_ID], threshold))
         
         if data_save_flag:
-            np.save(post_processed_data_folder+"/seg_qualities_list.npy", seg_qualities_list)    
+            np.save(post_processed_data_folder+"/seg_qualities_list.npy", seg_qualities_list)  
+
+        if verbose_flag:
+            print("...done.")
         
     return seg_qualities_list
