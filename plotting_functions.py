@@ -14,7 +14,8 @@ def basic_plotter(nrows, ncols, figsize,
                   vmax_list, vmin_list,
                   points_list,
                   colorbar_flag=True,
-                  extents_flag=True):
+                  extents_flag=True,
+                  edge_line_width=2):
                   
                   
     """
@@ -30,6 +31,8 @@ def basic_plotter(nrows, ncols, figsize,
         points_list:
         colorbar_flag:
         extents_flag:
+        segment_line_flag:
+        plot_edge_flag:
     
     returns:
         fig, ax:
@@ -54,15 +57,15 @@ def basic_plotter(nrows, ncols, figsize,
                 
             im = ax.imshow(abs(plottable_list[0]), cmap=cmap_list[0],
                            vmax=vmax_list[0], vmin=vmin_list[0])
+            plot_edger(ax, edge_line_width)
 
-            plot_edger(ax, edge_line_width=2)
         
         if colorbar_flag:
 
                 divider = make_axes_locatable(ax)
                 cax = divider.append_axes("right", size='5%', pad=.1)
                 plt.colorbar(im, cax=cax)
-                
+                      
     else:
     
         for i, plottable in enumerate(plottable_list):
@@ -80,7 +83,7 @@ def basic_plotter(nrows, ncols, figsize,
                 im = ax.flat[i].imshow(plottable, cmap=cmap_list[i],
                                        vmax=vmax_list[i], vmin=vmin_list[i])
 
-                plot_edger(ax.flat[i], edge_line_width=2)
+                plot_edger(ax.flat[i], edge_line_width)
 
             if colorbar_flag:
 
@@ -249,7 +252,7 @@ def contour_rect(im):
     
     """
     
-    Creates a set of vectors which can be plotted to draw lines around the edges of coalitions
+    Creates a set of vectors which can be plotted to draw lines around the edges of segments
     
     args:
         im: image
@@ -278,15 +281,15 @@ def contour_rect(im):
     return lines
     
     
-def coalition_line_drawer(ax, segmented_CS, m, n, edge_line_width):
+def segment_line_drawer(ax, segment_structure, m, n, edge_line_width):
     
     """
     
-    Creates a set of vectors which can be plotted to draw lines around the edges of coalitions
+    Creates a set of vectors which can be plotted to draw lines around the edges of segments
     
     args:
         ax:
-        segmented_CS:
+        segment_structure:
         m, n:
         num_pixels:
         edge_line_width:
@@ -296,18 +299,18 @@ def coalition_line_drawer(ax, segmented_CS, m, n, edge_line_width):
         
     """
     
-    CS_map_array = np.zeros(m*n) # segment array = positions of the various coalitions   
-    for i, coalition in enumerate(segmented_CS):
-        for pixel in coalition:
+    CS_map_array = np.zeros(m*n) # segment array = positions of the various segments   
+    for i, segment in enumerate(segment_structure):
+        for pixel in segment:
             CS_map_array[pixel] = i
     CS_map_array = np.reshape(CS_map_array, (m, n))
     
     contour_lines = []
-    for ID in range(len(segmented_CS)):
-        coalition = np.zeros(CS_map_array.size)
-        coalition[list(segmented_CS[ID])] = 1
-        coalition = coalition.reshape(CS_map_array.shape)
-        contour_lines.append(contour_rect(coalition))
+    for ID in range(len(segment_structure)):
+        segment = np.zeros(CS_map_array.size)
+        segment[list(segment_structure[ID])] = 1
+        segment = segment.reshape(CS_map_array.shape)
+        contour_lines.append(contour_rect(segment))
     for lines in contour_lines:
         for line in lines:
             ax.plot(line[1], line[0], color='k', lw=edge_line_width)
@@ -318,7 +321,7 @@ def plot_edger(ax, edge_line_width):
 
     """
     
-    Creates a set of vectors which can be plotted to draw lines around the edges of coalitions
+    Creates a set of vectors which can be plotted to draw lines around the edges of segments
     
     args:
         ax:
@@ -336,20 +339,20 @@ def plot_edger(ax, edge_line_width):
     return None    
     
     
-def CS_structure_plotter(ax, segmented_CS, m, n, target_CS_length, font_size, edge_line_width, CS_labels=True, coalition_lines=True):
+def CS_structure_plotter(ax, segment_structure, m, n, target_CS_length, font_size, edge_line_width, CS_labels=True, segment_lines=True):
 
     """
     
-    Creates a set of vectors which can be plotted to draw lines around the edges of coalitions
+    Creates a set of vectors which can be plotted to draw lines around the edges of segments
     
     args:
         ax:
-        segmented_CS:
+        segment_structure:
         m, n:
         font_size:
         edge_line_width:
         CS_labels:
-        coalition_lines:
+        segment_lines:
     
     returns:
         None
@@ -364,10 +367,10 @@ def CS_structure_plotter(ax, segmented_CS, m, n, target_CS_length, font_size, ed
         col = (ID - np.mod(ID, apsize[1])) / apsize[1]
         return int(col), int(row)
 
-    CS_map_array = np.zeros(m*n) # segment array = positions of the various coalitions  
+    CS_map_array = np.zeros(m*n) # segment array = positions of the various segments  
     
-    for i, coalition in enumerate(segmented_CS):
-        for pixel in coalition:
+    for i, segment in enumerate(segment_structure):
+        for pixel in segment:
             CS_map_array[pixel] = i
     CS_map_array = np.reshape(CS_map_array, (m, n))
 
@@ -383,8 +386,8 @@ def CS_structure_plotter(ax, segmented_CS, m, n, target_CS_length, font_size, ed
             coord = PixIDToPos((m, n), i)
             ax.text(coord[1], coord[0], str(int(value+1)), ha="center", va="center", fontsize=font_size)
     
-    if coalition_lines:
-        coalition_line_drawer(ax, segmented_CS, m, n, edge_line_width)
+    if segment_lines:
+        segment_line_drawer(ax, segment_structure, m, n, edge_line_width)
     
     return None
     
