@@ -436,8 +436,7 @@ def transducer_position_plotter(ax, tx_rot, ty_rot, tz_rot, rot_dir,
     # draw the AMM surface
     for i in range(len(AMM_points[0][0])):
         square = Rectangle((AMM_points[0][0][i]-dx_AMM/2, AMM_points[1][0][i]-dx_AMM/2),
-                           width=dx_AMM, height=dx_AMM,
-                           color=rgba_vec[i], zorder=0)
+                           width=dx_AMM, height=dx_AMM, color=rgba_vec[i], zorder=0)
         ax.add_patch(square)
         art3d.pathpatch_2d_to_3d(square, z=0, zdir="z")
 

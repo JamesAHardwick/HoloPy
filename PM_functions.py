@@ -8,73 +8,71 @@ import math as math
 from scipy.special import comb
 
 
-def find_tp_mat(tran_centrepoint, eval_points):
+def vmag3D(vector):
+
+    """ find the magnitude of a 3D vector. """
+
+    return np.sqrt((vector[0] ** 2) + (vector[1] ** 2) + (vector[2] ** 2))
+    
+    
+def find_tp_vec(eval_points, tran_points):
     
     """
     find the matrix of vector distances between transducer (t) and each point in the evaluation plane (p_{i,j,k}).
     
     args:
-        tran_centrepoint: 
         eval_points: list of [x, y, z] coords for the evaluation points in form of flat numpy arrays.
+        tran_points: list of [x, y, z] coords for the transducer points in form of flat numpy arrays.
         
     returns:
-        tp_mat: flat matrix containing all vector distances between t and p_{i,j,k}
+        tp_vec: vector of distances between t and p_{i,j,k}
     
     """
     
-    tp_mat = np.sqrt((tran_centrepoint[0] - eval_points[0])**2 + \
-                     (tran_centrepoint[1] - eval_points[1])**2 + \
-                     (tran_centrepoint[2] - eval_points[2])**2)
+    # find the distance vector in the x, y and z planes.
+    tp_vec = np.array([np.array([float(eval_points[0].T[i]) - float(tran_points[0]),
+                                 float(eval_points[1].T[i]) - float(tran_points[1]),
+                                 float(eval_points[2].T[i]) - float(tran_points[2])]) \
+                                 for i in range(len(eval_points[0].T))])
     
-    return tp_mat
+    return tp_vec
 
 
-def find_sin_theta_mat(tran_normal, eval_points):
+def find_sin_theta(tp_vec, tran_normal):
     
     """
     find the sin of the angle between the transducer normal, tp and each point in the evaulation plane (p_{i,j,k}).
     
     args:
-        tran_normal: 3d vector describing the normal of the transducer. We usually point this at the centre of the AMM.
-        eval_points: list of [x, y, z] coords for the evaluation points in form of flat numpy arrays.
+        tp_vec: flat array of vector distances between transducer and evaluation points.
+        tran_normal: vector describing the normal of the transducer.
         
     returns:
-        sin_theta_mat: flat matrix containing sin of the angle between the tran normal and each point.
+        sin_theta: flat matrix containing sin of the angle between the tran normal and each point.
     
     """
+
+    # find cross and dot product
+    cross_product = np.cross(tp_vec, tran_normal)
+    dot_product = vmag3D(tp_vec.T)*vmag3D(tran_normal.T)
     
-    def vmag3D(vector):
-        
-        """
-        find the magnitude of a 3D vector.
-        
-        """
-        
-        return np.sqrt((vector[0] ** 2) + vector[1] ** 2 + vector[2] ** 2)
-        
-    eval_array = np.array([[float(eval_points[0].T[i]),
-                        float(eval_points[1].T[i]),
-                        float(eval_points[2].T[i])] for i in range(len(eval_points[0].T))])
-
-    cross_product = np.cross(tran_normal.T, eval_array)
-    dot_product = vmag3D(tran_normal)*vmag3D(eval_array.T)
-
-    sin_theta = vmag3D(cross_product.T) / dot_product
-
-    return sin_theta.reshape((1, -1))
-
-
-def PM_propagator_function_builder(tp_mat, sin_theta_mat, k, p0=8.02, d=10.5/1000):
+    # find sin theta
+    sin_theta = vmag3D(cross_product.T)/dot_product
+    
+    return sin_theta
+    
+    
+def PM_propagator_function_builder(tp_vec, sin_theta, k, p0=8.02, d=10.5/1000):
     
     """ 
     Piston model calculator. Finds the complex pressure propagated by transducers from
     one plane to another, determined using the PM_pesb function. (see GS-PAT eq.2).
     
     args:
-        rxy = matrix describing Pythagorean distances between each transducer and each evaluation point in x and y
-        rxyz = matrix describing Pythagorean distances between each transducer and each evaluation point in x, y and z.
+        tp_vec = vector of Pythagorean distances between each transducer and each evaluation point in x, y and z.
+        sin_theta = sin of angle between tran normal and vector drawn between the transducer and each evaluation point.
         k = wavenumber
-        p0 = (8.02 [Pa]) refernce pressure for Murata transducer measured at a distance of 1m
+        p0 = (8.02 [Pa]) reference pressure for Murata transducer measured at a distance of 1m
         d = (10.5/1000 [m]) spacing between Murata transducers in a lev board.
     
     returns:
@@ -82,43 +80,16 @@ def PM_propagator_function_builder(tp_mat, sin_theta_mat, k, p0=8.02, d=10.5/100
         
     """
     # argument of 1st order Bessel function
-    J_arg = k*(d/2)*sin_theta_mat
+    J_arg = k*(d/2)*sin_theta
     
     # taylor expansion of first order Bessel function over its agrument (J_1(J_arg)/J_arg)
     tay = (1/2)-(J_arg**2/16)+(J_arg**4/384)-(J_arg**6/18432)+(J_arg**8/1474560)-(J_arg**10/176947200)
     
     # propagator function
-    H = 2*p0*(tay/tp_mat)*np.exp(1j*k*tp_mat)
+    H = 2*p0*(tay/tp_vec)*np.exp(1j*k*tp_vec)
     
     return H
-
-
-def PM_prop(transducer_surface_pressure, H, prop_direction):
     
-    """
-    find the product of the propagator, H, and transducer surface pressure to find pressure at evaluation plane.
-    
-    args:
-        transducer_surface_pressure: complex pressure matrix on transdcuer plane surface.
-        H: the propagator function defined using "PM_propagator_function_builder" 
-        prop_direction: direction of propagation ("forward" or "backward").
-        
-    returns:
-        complex pressure matrix at the evaluation plane.
-    
-    """
-    
-    # forward propagate from AMM plane to evaluation plane
-    if prop_direction == "forward":       
-        return np.dot(transducer_surface_pressure, H) 
-    
-    # backward propagate from evaluation plane to AMM
-    elif prop_direction == "backward":
-        return np.dot(transducer_surface_pressure, np.conj(H).T) 
-    
-    else:
-        print(prop_direction, "is not a valid propagation direction, please specifiy either 'forward' or 'backward'.")
-
 
 def rotate_2d(x_vals, y_vals, theta):
     

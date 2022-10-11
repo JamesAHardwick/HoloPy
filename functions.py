@@ -154,7 +154,7 @@ def target_builder_image(filename):
     return abs((target_image/np.amax(target_image)) - 1)
 
     
-def target_builder_chars(char_list, font_file, fontsize, im_h):
+def target_builder_chars(char_list, font_file, fontsize, im_w, im_h):
     
     """
     
@@ -204,8 +204,8 @@ def target_builder_chars(char_list, font_file, fontsize, im_h):
         # pad zeros around the characters
         target_dummy = target_image
         w, h = target_dummy.shape[0], target_dummy.shape[1]
-        target_image = np.zeros((im_h, im_h))    
-        target_image[int((im_h-w)/2): int((im_h+w)/2), int((im_h-h)/2):int((im_h+h)/2)] = target_dummy   
+        target_image = np.zeros((im_w, im_h))    
+        target_image[int((im_w-w)/2): int((im_w+w)/2), int((im_h-h)/2):int((im_h+h)/2)] = target_dummy   
         target_images.append(target_image) # save to list
     return target_images
 
