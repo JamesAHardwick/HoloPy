@@ -226,7 +226,7 @@ def prop_thresholder(prop, threshold):
     return prop
      
     
-def focus_phasemap_builder(AMM_points, focal_point_position, k):
+def focus_phasemap_builder(AMM_points, focal_point_position, k, focal_point_phase = 0):
 
     """
     Builds a phasemap for an AMM or PAT creating a focus at some point in 3D space.
@@ -248,7 +248,7 @@ def focus_phasemap_builder(AMM_points, focal_point_position, k):
                                     (AMM_points[2] + focal_point_position[2])**2)
 
     # total change in phase of waves as they travel this distance.
-    total_phase_array = -travel_distance_array * k 
+    total_phase_array = focal_point_phase - travel_distance_array * k 
 
     # normalise between 0 and 2π [rads].
     norm_phase_array = np.remainder(total_phase_array, 2*np.pi) - np.pi
