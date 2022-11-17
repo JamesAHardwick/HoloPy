@@ -281,7 +281,7 @@ def contour_rect(im):
     return lines
     
     
-def segment_line_drawer(ax, segment_structure, m, n, edge_line_width):
+def segment_line_drawer(ax, segment_structure, m, n, edge_line_width, c='k'):
     
     """
     
@@ -313,7 +313,7 @@ def segment_line_drawer(ax, segment_structure, m, n, edge_line_width):
         contour_lines.append(contour_rect(segment))
     for lines in contour_lines:
         for line in lines:
-            ax.plot(line[1], line[0], color='k', lw=edge_line_width)
+            ax.plot(line[1], line[0], color=c, lw=edge_line_width)
     return None
         
         
