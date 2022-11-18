@@ -16,7 +16,7 @@ def vmag3D(vector):
     return np.sqrt((vector[0] ** 2) + (vector[1] ** 2) + (vector[2] ** 2))
     
     
-def find_tp_vec(eval_points, tran_points):
+def find_tp_vec_old(eval_points, tran_points):
     
     """
     find the matrix of vector distances between transducer (t) and each point in the evaluation plane (p_{i,j,k}).
@@ -37,6 +37,29 @@ def find_tp_vec(eval_points, tran_points):
                                  for i in range(len(eval_points[0].T))])
     
     return tp_vec
+    
+    
+def find_tp_vec(eval_points, tran_points):
+    
+    """
+    find the matrix of vector distances between the transducer and evaluation points.
+    
+    args:
+        eval_points: (nxm)x3 array of points (where n and m are the x and y dimensions of the evaluation plane).
+        tran_points: tx3 array of points (where t is the number of transducers).
+        
+    returns:
+        tp_vec: (nxmxt)x3 array of distances between each evaluation and transducer point.
+    
+    """
+    
+    tp_vec = []
+
+    for tran_point in tran_points:
+        for eval_point in eval_points:
+            tp_vec.append(eval_point - tran_point)
+
+    return np.array(tp_vec)
 
 
 def find_sin_theta(tp_vec, tran_normal):
@@ -227,32 +250,43 @@ def rotate_and_translate(old_plane_points, old_plane_centre, new_plane_centre):
 
         return rotmat
 
-    # define the vector pointing upwards (+ve z direction) from the centre of the old plane:
-    old_plane_normal_vector_start = old_plane_centre
-    old_plane_normal_vector_end = np.array([0, 0, np.linalg.norm(new_plane_centre)])
-    old_plane_normal_vector = old_plane_normal_vector_end - old_plane_normal_vector_start
+    # if the plane is simply translated in the +z direction, then we do not need to rotate
+    if new_plane_centre[0] == old_plane_centre[0] and new_plane_centre[1] == old_plane_centre[1]:
 
-    # define the vector pointing from the centre of the transducer plane towards the centre of the old plane:
-    new_plane_normal_vector_start = new_plane_centre
-    new_plane_normal_vector_end = old_plane_centre
-    new_plane_normal_vector = new_plane_normal_vector_end - new_plane_normal_vector_start
-    
-    # calculate the rotation matrix for translating the old vector into the tran vector:
-    axis, angle = unit_axis_angle(old_plane_normal_vector/np.linalg.norm(old_plane_normal_vector),
-                                  new_plane_normal_vector/np.linalg.norm(new_plane_normal_vector))
-    
-    # find the rotation matrix
-    R = rotation_matrix(axis, angle)
-    
-    # use R to find the rotation vector top transform the old plane into the new plane:
-    rotation_vector = np.linalg.norm(new_plane_normal_vector) * \
-                      R.dot(old_plane_normal_vector/np.linalg.norm(old_plane_normal_vector))
-    
-    # rotate:
-    r_old_plane_points = rotate_plane(rotation_vector, old_plane_points)
+        # translate:
+        new_plane_points = old_plane_points + new_plane_centre
 
-    # translate:
-    new_plane_points = r_old_plane_points + new_plane_centre
+        # in this case the normal points in the -z direction
+        new_plane_normal_vector = np.array([0, 0, -new_plane_centre[2]])
+        
+    else:
+    
+        # define the vector pointing upwards (+ve z direction) from the centre of the old plane:
+        old_plane_normal_vector_start = old_plane_centre
+        old_plane_normal_vector_end = np.array([0, 0, np.linalg.norm(new_plane_centre)])
+        old_plane_normal_vector = old_plane_normal_vector_end - old_plane_normal_vector_start
+
+        # define the vector pointing from the centre of the transducer plane towards the centre of the old plane:
+        new_plane_normal_vector_start = new_plane_centre
+        new_plane_normal_vector_end = old_plane_centre
+        new_plane_normal_vector = new_plane_normal_vector_end - new_plane_normal_vector_start
+
+        # calculate the rotation matrix for translating the old vector into the tran vector:
+        axis, angle = unit_axis_angle(old_plane_normal_vector/np.linalg.norm(old_plane_normal_vector),
+                                      new_plane_normal_vector/np.linalg.norm(new_plane_normal_vector))
+
+        # find the rotation matrix
+        R = rotation_matrix(axis, angle)
+
+        # use R to find the rotation vector top transform the old plane into the new plane:
+        rotation_vector = np.linalg.norm(new_plane_normal_vector) * \
+                          R.dot(old_plane_normal_vector/np.linalg.norm(old_plane_normal_vector))
+
+        # rotate:
+        r_old_plane_points = rotate_plane(rotation_vector, old_plane_points)
+
+        # translate:
+        new_plane_points = r_old_plane_points + new_plane_centre
     
     return new_plane_points, new_plane_normal_vector
 

@@ -147,9 +147,47 @@ def extents_finder(points):
     """
     
     
-    full_extents = [(1000*np.amin(points[0]), 1000*np.amax(points[0])),
-                    (1000*np.amin(points[1]), 1000*np.amax(points[1])), 
-                    (1000*np.amin(points[2]), 1000*np.amax(points[2]))]
+    full_extents = [(1000*np.amin(np.array(points).T[0]), 1000*np.amax(np.array(points).T[0])),
+                    (1000*np.amin(np.array(points).T[1]), 1000*np.amax(np.array(points).T[1])), 
+                    (1000*np.amin(np.array(points).T[2]), 1000*np.amax(np.array(points).T[2]))]
+    
+    # ----> yz plane <----
+    if full_extents[0][0] == full_extents[0][1]:
+    
+        extents = [full_extents[1][0], full_extents[1][1], full_extents[2][0], full_extents[2][1]]
+    
+    # ----> xz plane <----
+    elif full_extents[1][0] == full_extents[1][1]:
+    
+        extents = [full_extents[0][0], full_extents[0][1], full_extents[2][0], full_extents[2][1]]
+        
+    # ----> xy plane <----
+    elif full_extents[2][0] == full_extents[2][1]:
+    
+        extents = [full_extents[0][0], full_extents[0][1], full_extents[1][0], full_extents[1][1]]
+    
+    return extents
+
+
+def extents_finder_old(points):
+
+
+    """
+    
+    Finds the extents of the plane being plotted
+    
+    args:
+        points: list of [x, y, z] coordinates for the plane being plotted.
+    
+    returns:
+        extents: the extents in the yz, xz or xy plane for the plane to be passed to the plt.imshow call.
+        
+    """
+    
+    
+    full_extents = [(1000*np.amin(np.array(points).T[0]), 1000*np.amax(np.array(points).T[0])),
+                    (1000*np.amin(np.array(points).T[1]), 1000*np.amax(np.array(points).T[1])), 
+                    (1000*np.amin(np.array(points).T[2]), 1000*np.amax(np.array(points).T[2]))]
     
     # ----> yz plane <----
     if full_extents[0][0] == full_extents[0][1]:

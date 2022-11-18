@@ -8,7 +8,7 @@ import math as math
 from scipy.special import comb
 
 
-def points_vector_builder(centrepoint, extents, pixel_spacing):
+def points_vector_builder_old(centrepoint, extents, pixel_spacing):
     
     """
     
@@ -61,6 +61,56 @@ def points_vector_builder(centrepoint, extents, pixel_spacing):
     
     return points_vector_list
 
+
+def points_vector_builder(centrepoint, extents, pixel_spacing):
+    
+    """
+    
+    We can define an evalution plane using 3 inputs:
+
+    args:
+        centrepoint: (x, y, z) tuple describing the central point of the evaulation plane (meters).
+        extents: list of tuples in the form [(+x, -x), (+y, -y), (+z, -z)] describing the distances which the plane
+        extends in each +ve and -ve direction from the centrepoint. In order to create a valid 2D plane, one of
+        (+x, -x), (+y, -y), or (+z, -z) must be (0, 0).
+        pixel_spacing: distance between pixels on the evaluation plane (meters).
+    
+    returns:
+        points_vector_list: list of x, y and z coordinate arrays.
+    
+    """
+
+    # side vectors for evaluation point matrix
+    x = np.arange(centrepoint[0] - (extents[0][0]) + (pixel_spacing/2),
+                  centrepoint[0] + (extents[0][1]),
+                  pixel_spacing)
+    
+    y = np.arange(centrepoint[1] - (extents[1][0]) + (pixel_spacing/2),
+                  centrepoint[1] + (extents[1][1]),
+                  pixel_spacing)
+    
+    z = np.arange(centrepoint[2] - (extents[2][0]) + (pixel_spacing/2),
+                  centrepoint[2] + (extents[2][1]),
+                  pixel_spacing)
+    
+    # if yz plane
+    if extents[0] == (0, 0): 
+        yy, zz = np.meshgrid(y, z)
+        xx = centrepoint[0]*np.ones(len(y)*len(z))
+    
+    # if xz plane
+    elif extents[1] == (0, 0): 
+        xx, zz = np.meshgrid(x, z)
+        yy = centrepoint[1]*np.ones(len(x)*len(z))
+        
+    # if xy plane    
+    elif extents[2] == (0, 0):
+        xx, yy = np.meshgrid(x, y)
+        zz = centrepoint[2]*np.ones(len(x)*len(y))
+    
+    # return a list of x, y and z vectors
+    
+    return np.concatenate((xx.reshape(1, -1), yy.reshape(1, -1), zz.reshape(1, -1))).T
     
     
 def circular_distance(angle1, angle2):
