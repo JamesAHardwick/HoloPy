@@ -155,7 +155,7 @@ def ASM_Iterative_GS(target_image, incident_surface_pressure, iterations, cell_s
         k: wavenumber.
         
     returns:
-        lpp: complex pressure map at the target plane.
+        lpp: complex pressure map at the lens plane.
         
     """
     

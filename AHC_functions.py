@@ -6,6 +6,7 @@ import matplotlib.cm as cm
 import itertools as it
 import math as math
 from scipy.special import comb
+from functions import circular_mean
 
 
 def PixPosToID(apsize, row, col):
@@ -37,13 +38,6 @@ def PixIDToPos(apsize, ID):
     row = np.mod(ID, apsize[1])
     col = (ID - np.mod(ID, apsize[1])) / apsize[1]
     return int(col), int(row)
-
-
-def circular_mean(phases):
-    """
-    find the circular mean of a set of phases
-    """
-    return np.arctan2(np.sum(np.sin(phases)), np.sum(np.cos(phases)))
 
 
 def cmad(phases, axis=None):

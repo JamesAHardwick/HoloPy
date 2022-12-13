@@ -14,7 +14,8 @@ def basic_plotter(nrows, ncols, figsize,
                   vmax_list, vmin_list,
                   points_list,
                   colorbar_flag=True,
-                  extents_flag=True,
+                  extents_flag="default",
+                  custom_extents=[],
                   edge_line_width=2):
                   
                   
@@ -44,15 +45,21 @@ def basic_plotter(nrows, ncols, figsize,
     fig, ax = plt.subplots(nrows, ncols, figsize=figsize)
     
     if nrows == ncols == 1:
+    
+        if extents_flag == "custom":
+                     
+            im = ax.imshow(plottable_list[0], cmap=cmap_list[0],
+                           vmax=vmax_list[0], vmin=vmin_list[0],
+                           extent=custom_extents)
         
-        if extents_flag:
+        elif extents_flag == "default":
             
             extents = extents_finder(points_list[0])
             
             im = ax.imshow(plottable_list[0], cmap=cmap_list[0],
                            vmax=vmax_list[0], vmin=vmin_list[0],
                            extent=extents)
-    
+                           
         else:
                 
             im = ax.imshow(abs(plottable_list[0]), cmap=cmap_list[0],
@@ -64,20 +71,28 @@ def basic_plotter(nrows, ncols, figsize,
 
                 divider = make_axes_locatable(ax)
                 cax = divider.append_axes("right", size='5%', pad=.1)
-                plt.colorbar(im, cax=cax)
+                cbar = plt.colorbar(im, cax=cax)
+                
+                return fig, ax, cbar
                       
     else:
     
         for i, plottable in enumerate(plottable_list):
+        
+            if extents_flag == "custom":
+                     
+                im = ax.imshow(plottable_list[0], cmap=cmap_list[0],
+                               vmax=vmax_list[0], vmin=vmin_list[0],
+                               extent=custom_extents) 
             
-            if extents_flag:
+            elif extents_flag == "default":
                 
                 extents = extents_finder(points_list[i])
             
                 im = ax.flat[i].imshow(plottable, cmap=cmap_list[i],
                                vmax=vmax_list[i], vmin=vmin_list[i],
-                               extent=extents)
-                
+                               extent=extents)           
+
             else:
 
                 im = ax.flat[i].imshow(plottable, cmap=cmap_list[i],
@@ -89,7 +104,9 @@ def basic_plotter(nrows, ncols, figsize,
 
                 divider = make_axes_locatable(ax.flat[i])
                 cax = divider.append_axes("right", size='5%', pad=.1)
-                plt.colorbar(im, cax=cax)
+                cbar = plt.colorbar(im, cax=cax)
+                
+                return fig, ax, cbar
     
     return fig, ax
     

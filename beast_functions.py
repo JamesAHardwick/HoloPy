@@ -137,7 +137,7 @@ def read_csv_data(folder_path, filename):
                 
     return coords, voltages
     
-def find_complex_pressure_matrix(coords, voltages, step, microphone_correction_dB):
+def find_complex_pressure_matrix(coords, voltages, step, plot_shape, microphone_correction_dB):
         
     """
     
@@ -167,7 +167,12 @@ def find_complex_pressure_matrix(coords, voltages, step, microphone_correction_d
     starting_coord = coords[0] # first coord measured by the beast
     ending_coord = coords[-1]  # final coord measured by the beast
     scan_size = tuple(map(lambda i, j: round(abs(i - j), 2), starting_coord, ending_coord)) # size of the 2d scan
-    plot_shape = plot_shape_finder(scan_size, step) # shape of the sacn plane
+    # plot_shape = plot_shape_finder(scan_size, step) # shape of the scan plane
+
+
+    print("starting_coord", starting_coord)
+    print("ending_coord", ending_coord)
+    print("scan_size", scan_size)
 
     for dx in np.arange(0, scan_size[0]+step, step).round(2):
         for dy in np.arange(0, scan_size[1]+step, step).round(2):
@@ -182,16 +187,15 @@ def find_complex_pressure_matrix(coords, voltages, step, microphone_correction_d
 
     # calculate complex pressure for the scan 
     uncorrected_complex_pressure_matrix = abs_pressure_matrix*np.exp(1j*phase_matrix)
-    corrected_complex_pressure_matrix = free_field_mic_correction(uncorrected_complex_pressure_matrix,
-                                                                  microphone_correction_dB)
+    corrected_complex_pressure_matrix = free_field_mic_correction(uncorrected_complex_pressure_matrix, microphone_correction_dB)
 
-    # matrix must be inverted and flipped as the beast measures backwards...
+    # matrix must be transposed and flipped as the beast measures backwards...
     complex_pressure_matrix = np.flipud(corrected_complex_pressure_matrix.T)
 
     return complex_pressure_matrix
 
 
-def interpret_beast_data(folder_path, filename, step, microphone_correction_dB, npy_save_flag=False, npy_save_path=""):
+def interpret_beast_data(folder_path, filename, step, plot_shape, microphone_correction_dB, npy_save_flag=False, npy_save_path=""):
 
     """
     
@@ -211,7 +215,7 @@ def interpret_beast_data(folder_path, filename, step, microphone_correction_dB, 
     coords, voltages = read_csv_data(folder_path, filename)
     
     # convert coord and voltage data into a complex pressure matrix
-    complex_pressure_matrix = find_complex_pressure_matrix(coords, voltages, step, microphone_correction_dB)
+    complex_pressure_matrix = find_complex_pressure_matrix(coords, voltages, step, plot_shape, microphone_correction_dB)
         
     if npy_save_flag:
         os.makedirs(folder_path+"/npy/", exist_ok=True)

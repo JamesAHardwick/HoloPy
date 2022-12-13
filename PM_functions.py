@@ -115,6 +115,38 @@ def PM_propagator_function_builder(tp_vec, sin_theta, k, p0=8.02, d=10.5/1000):
     return H
     
     
+def PM_prop(target_points, tran_points, tran_plane_normal_vector, k, A_magnitude = 1):
+
+    """ 
+    
+    Piston model propagator. Finds the complex pressure propagated by transducers from one plane to another (see GS-PAT eq.2).
+    
+    args:
+        target_points: array describing the evaluation points where we want to find complex pressure.
+        tran_points: array describing the centrepoint of each transducer.
+        tran_plane_normal_vector = normal vector describing the direction in which transducers are pointing.
+        k: wavenumber.
+        A_magnitude: 1 denotes transducers driven at maximum amplitude. 0 denotes transducers switched off.
+    
+    returns:
+        Pf: array of complex pressure values at the evaluation points.
+        
+    """
+    
+    # ----> propagation to target plane <----
+    tp_vec = find_tp_vec(target_points, tran_points)
+    tp_mag = np.array([np.linalg.norm(tp_coord) for tp_coord in tp_vec])
+    sin_theta_array = find_sin_theta(tp_vec, tran_plane_normal_vector)
+
+    H = PM_propagator_function_builder(tp_mag, sin_theta_array, k) # propagator
+    H = H.reshape(len(tran_points), len(target_points)) # reshape from vector to array
+
+    Pt = A_magnitude*np.ones(len(tran_points))*np.exp(1j*np.zeros(len(tran_points))) # transducer complex pressure
+    Pf = np.dot(Pt, H)
+    
+    return Pf
+    
+    
 def hexagon_diameter_to_coordinates(d, x_spacing=10.5/1000, y_spacing=9/1000) -> list((float, float, float)):
     
     """

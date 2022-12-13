@@ -111,7 +111,14 @@ def points_vector_builder(centrepoint, extents, pixel_spacing):
     # return a list of x, y and z vectors
     
     return np.concatenate((xx.reshape(1, -1), yy.reshape(1, -1), zz.reshape(1, -1))).T
-    
+ 
+
+def circular_mean(phases):
+    """
+    find the circular mean of a set of phases
+    """
+    return np.arctan2(np.sum(np.sin(phases)), np.sum(np.cos(phases)))
+ 
     
 def circular_distance(angle1, angle2):
     '''Find the circular distance between two angles'''
@@ -274,36 +281,68 @@ def prop_thresholder(prop, threshold):
     
     prop[prop < threshold] = 0
     return prop
-     
     
-def focus_phasemap_builder(AMM_points, focal_point_position, k, focal_point_phase = 0):
+    
+def focus_phasemap_builder(points, focal_point_coords, k, focal_point_phase = 0):
 
     """
     Builds a phasemap for an AMM or PAT creating a focus at some point in 3D space.
 
     args:
-        AMM_points: matrix describing the postitions of elements on the AMM or PAT surface.
-        focal_point_position: (x, y, z) coords of the focus.
+        points: matrix describing the postitions of elements on the AMM or PAT surface.
+        focal_point_coords: (x, y, z) coords of the focus.
         k: wavenumber
         
     returns:
         norm_phase_array: matrix of phase delays from -pi to pi, with the same size as AMM_points, describing the
-        phase delays to build a focus at focal_point_position.
+        phase delays to build a focus at focal_point_coords.
 
     """
 
-    # matrix of distances from centre of each elem to focus
-    travel_distance_array = np.sqrt((AMM_points[0] + focal_point_position[0])**2 + \
-                                    (AMM_points[1] + focal_point_position[1])**2 + \
-                                    (AMM_points[2] + focal_point_position[2])**2)
+    travel_distance_array = [] # matrix of distances from centre of each elem to focus
+    
+    for elem_coord in points:
+        travel_distance_array.append(np.sqrt((elem_coord[0] + focal_point_coords[0])**2 + \
+                                             (elem_coord[1] + focal_point_coords[1])**2 + \
+                                             (elem_coord[2] + focal_point_coords[2])**2))
 
     # total change in phase of waves as they travel this distance.
-    total_phase_array = focal_point_phase - travel_distance_array * k 
+    total_phase_array = focal_point_phase - np.array(travel_distance_array) * k 
 
     # normalise between 0 and 2π [rads].
     norm_phase_array = np.remainder(total_phase_array, 2*np.pi) - np.pi
-
+    
     return norm_phase_array
+     
+    
+# def focus_phasemap_builder(points, focal_point_coords, k, focal_point_phase = 0):
+
+    # """
+    # Builds a phasemap for an AMM or PAT creating a focus at some point in 3D space.
+
+    # args:
+        # points: matrix describing the postitions of elements on the AMM or PAT surface.
+        # focal_point_coords: (x, y, z) coords of the focus.
+        # k: wavenumber
+        
+    # returns:
+        # norm_phase_array: matrix of phase delays from -pi to pi, with the same size as AMM_points, describing the
+        # phase delays to build a focus at focal_point_coords.
+
+    # """
+
+    # # matrix of distances from centre of each elem to focus
+    # travel_distance_array = np.sqrt((points.T[0] + focal_point_coords[0])**2 + \
+                                    # (points.T[1] + focal_point_coords[1])**2 + \
+                                    # (points.T[2] + focal_point_coords[2])**2)
+
+    # # total change in phase of waves as they travel this distance.
+    # total_phase_array = focal_point_phase - travel_distance_array * k 
+
+    # # normalise between 0 and 2π [rads].
+    # norm_phase_array = np.remainder(total_phase_array, 2*np.pi) - np.pi
+
+    # return norm_phase_array
 
 
 def heightmap_builder_simple(phasemap, wavelength):
