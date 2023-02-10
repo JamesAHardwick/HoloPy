@@ -67,7 +67,8 @@ def free_field_mic_correction(complex_pressure_matrix, microphone_correction_dB)
     """
     
     complex_pressure_matrix_SPL = 20*np.log10(complex_pressure_matrix/20e-6) # convert to SPL
-    complex_pressure_matrix_SPL = complex_pressure_matrix_SPL - microphone_correction_dB # subtract
+    complex_pressure_matrix_SPL = complex_pressure_matrix_SPL + microphone_correction_dB # add
+    # complex_pressure_matrix_SPL = complex_pressure_matrix_SPL - microphone_correction_dB # subtract
     corrected_complex_pressure_matrix = (20e-6) * 10**(complex_pressure_matrix_SPL/20)*np.sqrt(2) # convert back Pascals
         
     return corrected_complex_pressure_matrix

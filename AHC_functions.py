@@ -322,7 +322,7 @@ def run_AHC_algorithm(inputs, diff_datatype, output_data_folder, data_save_flag,
         return current_CS
 
 
-    def run_AHC_iteration(current_CS, combination_qualities, flat_phasemaps, datatype, verbose_flag):
+    def run_AHC_iteration(current_CS, combination_qualities, flat_phasemaps, datatype, verbose_flag=False):
         
         """
         
@@ -394,7 +394,8 @@ def run_AHC_algorithm(inputs, diff_datatype, output_data_folder, data_save_flag,
 
     if data_save_flag:
         os.makedirs(output_data_folder, exist_ok=True)
-        np.save(output_data_folder+"/results-"+str(0)+".npy", list(current_CS.keys()))
+        data_obj = np.array(list(current_CS.keys()), dtype=object) # save as list of objects to allow jagged list
+        np.save(output_data_folder+"/results-"+str(0)+".npy", data_obj)
 
     # ---> remaining iterations <---
     for iteration in range(1, num_pixels):
@@ -412,7 +413,8 @@ def run_AHC_algorithm(inputs, diff_datatype, output_data_folder, data_save_flag,
             current_CS = run_AHC_iteration(current_CS, combination_qualities, flat_inputs, diff_datatype, verbose_flag)
             CS_data.append(list(current_CS))
             if data_save_flag:
-                np.save(output_data_folder+"/results-"+str(iteration)+".npy", list(current_CS.keys()))
+                data_obj = np.array(list(current_CS.keys()), dtype=object) # save as list of objects to allow jagged list
+                np.save(output_data_folder+"/results-"+str(iteration)+".npy", data_obj)
             stop_clock = time.perf_counter() - start_timer
             clock[iteration] = stop_clock  
 
@@ -423,8 +425,7 @@ def run_AHC_algorithm(inputs, diff_datatype, output_data_folder, data_save_flag,
     return CS_data
     
     
-def segmented_phasemaps_list_builder(CS_data, input_phasemaps, post_processed_data_folder,
-                                     Pf, data_save_flag, override_flag, verbose_flag):
+def segmented_phasemaps_list_builder(CS_data, input_phasemaps, post_processed_data_folder, Pf, data_save_flag, override_flag, verbose_flag):
     
     """
     
@@ -538,6 +539,9 @@ def segmented_phasemaps_list_builder(CS_data, input_phasemaps, post_processed_da
         
         return segmented_constant_diff_phasemaps
     
+    # if save folder doesn't exist, make it
+    if data_save_flag: 
+        os.makedirs(post_processed_data_folder, exist_ok=True)
     
     seg_phasemaps_list = []
 
@@ -561,6 +565,7 @@ def segmented_phasemaps_list_builder(CS_data, input_phasemaps, post_processed_da
             seg_phasemaps_list.append(accounted_phasemaps)
 
         if data_save_flag:
+            
             np.save(post_processed_data_folder+"/seg_phasemaps_list.npy", seg_phasemaps_list)
         
         if verbose_flag:

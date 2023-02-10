@@ -7,7 +7,8 @@ import itertools as it
 import math as math
 from scipy.special import comb
 
-
+    
+    
 def basic_plotter(nrows, ncols, figsize,
                   plottable_list,
                   cmap_list,
@@ -36,79 +37,56 @@ def basic_plotter(nrows, ncols, figsize,
         plot_edge_flag:
     
     returns:
-        fig, ax:
+        fig, ax, cbar_ax:
         
     """
     
     from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 
-    fig, ax = plt.subplots(nrows, ncols, figsize=figsize)
+    fig, axes = plt.subplots(nrows, ncols, figsize=figsize)
     
-    if nrows == ncols == 1:
+    ax = np.array(axes)
     
+    for i, plottable in enumerate(plottable_list):
+        
+        # extents conditions:
         if extents_flag == "custom":
-                     
-            im = ax.imshow(plottable_list[0], cmap=cmap_list[0],
-                           vmax=vmax_list[0], vmin=vmin_list[0],
-                           extent=custom_extents)
-        
-        elif extents_flag == "default":
-            
-            extents = extents_finder(points_list[0])
-            
-            im = ax.imshow(plottable_list[0], cmap=cmap_list[0],
-                           vmax=vmax_list[0], vmin=vmin_list[0],
-                           extent=extents)
-                           
-        else:
-                
-            im = ax.imshow(abs(plottable_list[0]), cmap=cmap_list[0],
-                           vmax=vmax_list[0], vmin=vmin_list[0])
-            plot_edger(ax, edge_line_width)
 
-        
+            im = ax.flat[i].imshow(plottable_list[0], cmap=cmap_list[0],
+                            vmax=vmax_list[0], vmin=vmin_list[0],
+                            extent=custom_extents) 
+
+        elif extents_flag == "default":
+
+            extents = extents_finder(points_list[i])
+
+            im = ax.flat[i].imshow(plottable, cmap=cmap_list[i],
+                                   vmax=vmax_list[i], vmin=vmin_list[i],
+                                   extent=extents)           
+
+        elif extents_flag == "none":
+
+            im = ax.flat[i].imshow(plottable, cmap=cmap_list[i],
+                                   vmax=vmax_list[i], vmin=vmin_list[i])
+
+            plot_edger(ax.flat[i], edge_line_width)
+            
+        else:
+            
+            print(extents_flag, "is not a valid extents flag. Please ",
+                 "define either 'custom', 'default', or 'none'.")
+
+        # colorbar conditions:
         if colorbar_flag:
 
-                divider = make_axes_locatable(ax)
-                cax = divider.append_axes("right", size='5%', pad=.1)
-                cbar = plt.colorbar(im, cax=cax)
-                
-                return fig, ax, cbar
-                      
-    else:
+            divider = make_axes_locatable(ax.flat[i])
+            cax = divider.append_axes("right", size='5%', pad=.1)
+            cbar_ax = plt.colorbar(im, cax=cax)
+
+        else:
+            cbar_ax = False
     
-        for i, plottable in enumerate(plottable_list):
-        
-            if extents_flag == "custom":
-                     
-                im = ax.imshow(plottable_list[0], cmap=cmap_list[0],
-                               vmax=vmax_list[0], vmin=vmin_list[0],
-                               extent=custom_extents) 
-            
-            elif extents_flag == "default":
-                
-                extents = extents_finder(points_list[i])
-            
-                im = ax.flat[i].imshow(plottable, cmap=cmap_list[i],
-                               vmax=vmax_list[i], vmin=vmin_list[i],
-                               extent=extents)           
-
-            else:
-
-                im = ax.flat[i].imshow(plottable, cmap=cmap_list[i],
-                                       vmax=vmax_list[i], vmin=vmin_list[i])
-
-                plot_edger(ax.flat[i], edge_line_width)
-
-            if colorbar_flag:
-
-                divider = make_axes_locatable(ax.flat[i])
-                cax = divider.append_axes("right", size='5%', pad=.1)
-                cbar = plt.colorbar(im, cax=cax)
-                
-                return fig, ax, cbar
-    
-    return fig, ax
+    return fig, axes, cbar_ax
     
     
 def pf_shape(sidelengths, resolution, lam):

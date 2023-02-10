@@ -8,60 +8,6 @@ import math as math
 from scipy.special import comb
 
 
-def points_vector_builder_old(centrepoint, extents, pixel_spacing):
-    
-    """
-    
-    We can define an evalution plane using 3 inputs:
-
-    args:
-        centrepoint: (x, y, z) tuple describing the central point of the evaulation plane (meters).
-        extents: list of tuples in the form [(+x, -x), (+y, -y), (+z, -z)] describing the distances which the plane
-        extends in each +ve and -ve direction from the centrepoint. In order to create a valid 2D plane, one of
-        (+x, -x), (+y, -y), or (+z, -z) must be (0, 0).
-        pixel_spacing: distance between pixels on the evaluation plane (meters).
-    
-    returns:
-        points_vector_list: list of x, y and z coordinate arrays.
-    
-    """
-
-    # side vectors for evaluation point matrix
-    x = np.arange(centrepoint[0] - (extents[0][0]) + (pixel_spacing/2),
-                  centrepoint[0] + (extents[0][1]),
-                  pixel_spacing)
-    
-    y = np.arange(centrepoint[1] - (extents[1][0]) + (pixel_spacing/2),
-                  centrepoint[1] + (extents[1][1]),
-                  pixel_spacing)
-    
-    z = np.arange(centrepoint[2] - (extents[2][0]) + (pixel_spacing/2),
-                  centrepoint[2] + (extents[2][1]),
-                  pixel_spacing)
-    
-    # if yz plane
-    if extents[0] == (0, 0): 
-        yy, zz = np.meshgrid(y, z)
-        xx = centrepoint[0]*np.ones(len(y)*len(z))
-    
-    # if xz plane
-    elif extents[1] == (0, 0): 
-        xx, zz = np.meshgrid(x, z)
-        yy = centrepoint[1]*np.ones(len(x)*len(z))
-        
-    # if xy plane    
-    elif extents[2] == (0, 0):
-        xx, yy = np.meshgrid(x, y)
-        zz = centrepoint[2]*np.ones(len(x)*len(y))
-    
-    # return a list of x, y and z vectors
-    points_vector_list = [xx.reshape((1, -1)),
-                          yy.reshape((1, -1)),
-                          zz.reshape((1, -1))]
-    
-    return points_vector_list
-
-
 def points_vector_builder(centrepoint, extents, pixel_spacing):
     
     """
@@ -125,15 +71,6 @@ def circular_distance(angle1, angle2):
     return np.pi - abs(np.pi - abs(angle1 - angle2))
     
     
-# def signed_circular_distance(angle1, angle2):
-    # '''
-    # Find the circular difference between two angles.
-    # The sign indicates whether the angle2 is clockwise or anticlockwise w.r.t angle1.
-    # This is useful when one intends to convert from phase to heights.
-    # '''
-    # return min(angle2-angle1, angle2-angle1+2*np.pi, angle2-angle1-2*np.pi, key=abs)
-    
-    
 def signed_circular_distance(angle1, angle2):
     
     """
@@ -154,10 +91,7 @@ def signed_circular_distance(angle1, angle2):
     circular_difference_vector = np.zeros_like(vector1)
     
     for i in range(len(circular_difference_vector)):
-        circular_difference_vector[i] = min(vector2[i]-vector1[i],
-                                  vector2[i]-vector1[i]+2*np.pi,
-                                  vector2[i]-vector1[i]-2*np.pi,
-                                  key=abs)
+        circular_difference_vector[i] = min(vector2[i]-vector1[i], vector2[i]-vector1[i]+2*np.pi, vector2[i]-vector1[i]-2*np.pi, key=abs)
     
     circular_difference_matrix = circular_difference_vector.reshape(angle1.shape)    
     
@@ -211,6 +145,59 @@ def target_builder_image(filename):
     return abs((target_image/np.amax(target_image)) - 1)
 
     
+def target_builder_char(char, font_file, fontsize, im_w, im_h, slice_threshold = 0.05):
+    
+    """
+    
+    Creates an array of numpy array images to be used as targets with the iterative GS function.
+    
+    args:
+        char: character to be made into target.
+        font_file: .tff file containing the character font.
+        fontsize: font size (in pts, knowing that 10pts = 13px).
+        im_h: height of the numpy array in pixels, the function assumes a square array.
+        slice_threshold :  sum values in row or column and delete them if below this threshold
+    returns:
+        target_images: array of target images.
+        
+    """
+    
+    from PIL import Image, ImageDraw, ImageFont 
+    bg_color = (255, 255, 255) # Image background color (white)
+    
+    fnt = ImageFont.truetype(font_file, fontsize) # Create font object
+    w, h = fnt.getsize(str(char))
+    im = Image.new('RGB', (w, h), color = bg_color)
+    draw = ImageDraw.Draw(im)
+    draw.text((0, 0), str(char), font=fnt, fill="black")
+
+    target_image = np.array(im)[:,:,:1]
+    target_image = np.reshape(target_image[:,:],(target_image.shape[0], target_image.shape[1]))
+    target_image = 1 - target_image/255 # normalise
+
+    # remove rows < threshold
+    x_del = []
+    for i, x in enumerate(np.sum(target_image, axis=1)):
+        if x < slice_threshold:
+            x_del.append(i)
+    target_image = np.delete(target_image, x_del, axis=0)
+
+    # remove columns < threshold
+    y_del = []
+    for j, y in enumerate(np.sum(target_image, axis=0)):
+        if y < slice_threshold:
+            y_del.append(j)
+    target_image = np.delete(target_image, y_del, axis=1)
+
+    # pad zeros around the characters
+    target_dummy = target_image
+    w, h = target_dummy.shape[0], target_dummy.shape[1]
+    target_image = np.zeros((im_w, im_h))    
+    target_image[int((im_w-w)/2): int((im_w+w)/2), int((im_h-h)/2):int((im_h+h)/2)] = target_dummy   
+    
+    return target_image
+    
+
 def target_builder_chars(char_list, font_file, fontsize, im_w, im_h):
     
     """

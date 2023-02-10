@@ -86,7 +86,7 @@ def find_sin_theta(tp_vec, tran_normal):
     return sin_theta
     
     
-def PM_propagator_function_builder(tp_vec, sin_theta, k, p0=8.02, d=10.5/1000):
+def PM_propagator_function_builder(tp_vec, sin_theta, k, p0=8.02, d=10/1000):
     
     """ 
     Piston model calculator. Finds the complex pressure propagated by transducers from
@@ -97,8 +97,8 @@ def PM_propagator_function_builder(tp_vec, sin_theta, k, p0=8.02, d=10.5/1000):
         sin_theta = sin of angle between tran normal and vector drawn between the transducer and each evaluation point.
         k = wavenumber
         p0 = (8.02 [Pa]) reference pressure for Murata transducer measured at a distance of 1m
-        d = (10.5/1000 [m]) spacing between Murata transducers in a lev board.
-    
+        d = (10/1000 [m]) diameter of transducer.
+        
     returns:
         
         
