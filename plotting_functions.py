@@ -314,7 +314,7 @@ def contour_rect(im):
     return lines
     
     
-def segment_line_drawer(ax, segment_structure, m, n, edge_line_width, c='k'):
+def segment_line_drawer(ax, segment_structure, m, n, offset = 0, edge_line_width=2, c='k', flip_flag = False):
     
     """
     
@@ -337,6 +337,8 @@ def segment_line_drawer(ax, segment_structure, m, n, edge_line_width, c='k'):
         for pixel in segment:
             CS_map_array[pixel] = i
     CS_map_array = np.reshape(CS_map_array, (m, n))
+    if flip_flag:
+        CS_map_array = np.flipud(CS_map_array)
     
     contour_lines = []
     for ID in range(len(segment_structure)):
@@ -346,7 +348,10 @@ def segment_line_drawer(ax, segment_structure, m, n, edge_line_width, c='k'):
         contour_lines.append(contour_rect(segment))
     for lines in contour_lines:
         for line in lines:
-            ax.plot(line[1], line[0], color=c, lw=edge_line_width)
+            if offset == 0:
+                ax.plot(line[1], line[0], color=c, lw=edge_line_width)
+            else:
+                ax.plot([v+offset+.5 for v in line[1]], [v+offset+.5 for v in line[0]], color=c, lw=edge_line_width)
     return None
         
         
@@ -372,7 +377,7 @@ def plot_edger(ax, edge_line_width):
     return None    
     
     
-def CS_structure_plotter(ax, segment_structure, m, n, target_CS_length, font_size, edge_line_width, CS_labels=True, segment_lines=True):
+def CS_structure_plotter(ax, segment_structure, m, n, target_CS_length, font_size, edge_line_width, flip_flag=True, CS_labels=True, segment_lines=True):
 
     """
     
@@ -406,6 +411,9 @@ def CS_structure_plotter(ax, segment_structure, m, n, target_CS_length, font_siz
         for pixel in segment:
             CS_map_array[pixel] = i
     CS_map_array = np.reshape(CS_map_array, (m, n))
+    if flip_flag:
+        CS_map_array = np.flipud(CS_map_array)
+    
 
     cmap_list = [[1., 1., 1., 1.] for i in range(target_CS_length)]
     CS_cmap = ListedColormap(cmap_list)
@@ -420,7 +428,7 @@ def CS_structure_plotter(ax, segment_structure, m, n, target_CS_length, font_siz
             ax.text(coord[1], coord[0], str(int(value+1)), ha="center", va="center", fontsize=font_size)
     
     if segment_lines:
-        segment_line_drawer(ax, segment_structure, m, n, edge_line_width)
+        segment_line_drawer(ax, segment_structure, m, n, edge_line_width=edge_line_width)
     
     return None
     
