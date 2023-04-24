@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 # pip install -e . (install the package with a symlink – changes to the source files will be immediately available)
 
 setup(
-    name='algorithms',
+    name='holopy',
     version='0.1.0',
     author='James Hardwick',
     author_email='',
