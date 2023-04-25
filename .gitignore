@@ -4,3 +4,8 @@
 
 .vscode/
 .vscode/*
+
+*.eggs/
+*.eggs/*
+*.egg-info/
+*.egg-info/*
